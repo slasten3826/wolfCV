@@ -227,7 +227,9 @@ Input:
 
 Current implementation:
 
-- artifact array batches only
+- obvious `DOCS`, `INDEX`, `CONFIG`, and `TEST` artifacts stay on a Lua fast-path
+- only the remaining surfaces are sent through machine classify
+- machine classify batches are additionally bounded by prompt-char budget
 
 ### `extract_evidence`
 

@@ -181,6 +181,7 @@ Current operational laws:
 - Lua validates schema
 - truncation is treated as failure
 - large stage inputs are batched in Lua before provider invocation
+- obvious `DOCS`, `INDEX`, `CONFIG`, and `TEST` artifacts may bypass machine classify and stay on a Lua fast-path
 - small schema omissions may be repaired by stage normalization
 - `extract_evidence` currently asks for at most one strongest evidence object per artifact
 - truncation-triggered batches may be split adaptively by the kernel
@@ -228,6 +229,7 @@ Current confirmed result:
 
 - these protections were sufficient to complete the first full `truth` contour on the local `WolfCV` repository
 - the same runtime shape was sufficient to complete the first vacancy-aware contour on smaller repo surfaces and on top of existing `truth13` outputs
+- GitHub-profile runs improved materially once classify stopped sending obvious markdown/config/test surfaces through the model
 
 ---
 
@@ -242,6 +244,7 @@ Current pressure points:
 - multi-batch `extract_evidence` is still the heaviest truth-stage pressure point
 - full `run` on the complete local `WolfCV` repository remains slow and still needs one fresh confirmed completion after the vacancy-layer rollout
 - guard currently depends on strict batch-scoped draft slicing to keep `flash` inside budget
+- larger GitHub-profile runs are now bottlenecked more by evidence extraction than by classify
 
 Recent improvement:
 

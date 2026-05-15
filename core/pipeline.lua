@@ -159,6 +159,13 @@ local function chunked_by_chars(items, count_limit, char_limit, measure)
   return batches
 end
 
+local FAST_PATH_CLASS = {
+  DOCS = true,
+  INDEX = true,
+  CONFIG = true,
+  TEST = true,
+}
+
 local function stage_with_batch_name(stage, batch_label)
   local cloned = {}
   for key, value in pairs(stage) do
@@ -301,15 +308,54 @@ function M.run_classify(config, scan_result)
   local runtime_cfg = config_mod.default_runtime()
   local limits = config_mod.pipeline_limits()
   local stage = classify.stage()
-  local classified = run_stage_batches(
-    stage,
-    "artifacts",
-    scan_result.artifacts,
-    runtime_cfg,
-    config.out,
-    nil,
-    limits.classify_batch_size
+  local fast = {}
+  local machine = {}
+
+  for _, artifact in ipairs(scan_result.artifacts) do
+    if artifact.visibility == "normal" and FAST_PATH_CLASS[artifact.class] then
+      fast[#fast + 1] = artifact
+    else
+      machine[#machine + 1] = artifact
+    end
+  end
+
+  local machine_batches = chunked_by_chars(
+    machine,
+    limits.classify_batch_size,
+    limits.classify_prompt_chars,
+    function(item)
+      return #(item.path or "") + #(item.summary or "") + 256
+    end
   )
+
+  local classified = {}
+  for _, item in ipairs(fast) do
+    classified[#classified + 1] = item
+  end
+
+  if #machine > 0 then
+    local machine_classified = run_stage_batches(
+      stage,
+      "artifacts",
+      machine,
+      runtime_cfg,
+      config.out,
+      nil,
+      limits.classify_batch_size,
+      machine_batches
+    )
+    for _, item in ipairs(machine_classified) do
+      classified[#classified + 1] = item
+    end
+  end
+
+  table.sort(classified, function(a, b)
+    if a.repo_id == b.repo_id then
+      return a.path < b.path
+    end
+    return a.repo_id < b.repo_id
+  end)
+
   reports.write_json(fs.join(config.out, "classified_artifacts.json"), classified)
   return classified, runtime_cfg
 end
