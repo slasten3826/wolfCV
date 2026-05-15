@@ -19,4 +19,12 @@ function M.artifact_id(repo_name, rel_path)
   return "art_" .. slug(repo_name) .. "_" .. slug(rel_path)
 end
 
+function M.evidence_id(seed, index)
+  return "ev_" .. slug(seed) .. "_" .. tostring(index)
+end
+
+function M.claim_id(seed, index)
+  return "claim_" .. slug(seed) .. "_" .. tostring(index)
+end
+
 return M

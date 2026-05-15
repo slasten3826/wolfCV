@@ -2,7 +2,18 @@
 
 ## Status
 
-Working canonical draft.
+Legacy reference draft.
+
+This document belongs to the earlier pre-`mapp` specification layer.
+Do not delete it.
+Do not treat it as the primary current runtime law.
+
+Read current documents first:
+
+- `WOLFCV_MAPP_YELLOWPRINT_v0.md`
+- `WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md`
+- `WOLFCV_DEEPSEEK_PROVIDER_v0.md`
+- `IMPLEMENTATION_STATUS_v0.md`
 
 This document defines what WolfCV is as an application, what problem it solves, what it must do, what it must not do, and what its first useful product contour should be.
 

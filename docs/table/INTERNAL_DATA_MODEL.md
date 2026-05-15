@@ -2,7 +2,16 @@
 
 ## Status
 
-Working canonical draft.
+Legacy reference draft.
+
+This document belongs to the earlier pre-`mapp` specification layer.
+Do not delete it.
+Use it as background structure, not as the final current runtime contract.
+
+Read current documents first:
+
+- `WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md`
+- `IMPLEMENTATION_STATUS_v0.md`
 
 This document defines the minimum internal structured layer required for WolfCV to work as an evidence-to-CV compiler rather than a plain text generator.
 

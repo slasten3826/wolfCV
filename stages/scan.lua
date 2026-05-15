@@ -127,6 +127,10 @@ local function summary_for(repo_name, rel_path, class_name)
 end
 
 function M.run(config)
+  if not config.repos or #config.repos == 0 then
+    error("scan requires at least one repo via --repos")
+  end
+
   local repositories = {}
   local artifacts = {}
 

@@ -2,11 +2,32 @@
 
 ## Status
 
-Working canonical draft.
+Legacy reference draft with current implementation notes.
+
+This document started in the earlier pre-`mapp` planning layer.
+Do not delete it.
+Read it as a bridge document between the first plan and the current live body.
+
+Primary current references are:
+
+- `WOLFCV_MAPP_YELLOWPRINT_v0.md`
+- `WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md`
+- `IMPLEMENTATION_STATUS_v0.md`
 
 This document defines the first end-to-end executable pipeline for WolfCV.
 
 It is intentionally narrower than the full product vision.
+
+Current real implementation status:
+
+- `scan` is live
+- `classify` is live
+- `extract_evidence` is live
+- `build_claims` is live
+- `machinecv.md` rendering exists
+- first full `truth` run has completed successfully on the local `WolfCV` repository
+- `parse_vacancy`, `translate`, `guard`, and `gap` are not live yet
+- current pressure point is provider throughput on larger future repo sets
 
 ---
 
@@ -31,8 +52,11 @@ If it can do that, the core product loop is real.
 Mandatory:
 
 - one or more local repository paths
-- one vacancy text file
 - one output directory
+
+Required for the full recruiter-facing loop:
+
+- one vacancy text file
 
 Optional:
 
@@ -47,15 +71,16 @@ Optional:
 Mandatory:
 
 - `artifacts.json`
+- `classified_artifacts.json`
 - `evidence_map.json`
 - `claims.json`
-- `vacancy_map.json`
 - `machinecv.md`
-- `wolfcv.md`
-- `evidence_guard_report.md`
 
 Optional:
 
+- `vacancy_map.json`
+- `wolfcv.md`
+- `evidence_guard_report.md`
 - `legacyhrcv_report.md`
 - `gap_report.md`
 - `delta_report.md`
@@ -72,12 +97,30 @@ WolfCV MVP should execute these stages in order:
 3. artifact classification
 4. evidence extraction
 5. claim building
-6. vacancy parsing
-7. machinecv generation
+6. machinecv generation
+7. vacancy parsing
 8. wolfcv generation
 9. evidence guard validation
 10. optional gap planning
 ```
+
+Current implemented truth path:
+
+```text
+scan
+-> classify
+-> extract_evidence
+-> build_claims
+-> machinecv
+```
+
+Confirmed successful truth output set:
+
+- `artifacts.json`
+- `classified_artifacts.json`
+- `evidence_map.json`
+- `claims.json`
+- `machinecv.md`
 
 ---
 
@@ -143,6 +186,10 @@ Responsibilities:
 
 This stage should remain cheap and auditable.
 
+Implementation note:
+
+- this stage is currently batched to keep `deepseek-v4-flash` from returning truncated arrays
+
 ---
 
 ### 5.4 Evidence extraction
@@ -169,6 +216,13 @@ Critical rule:
 Evidence must remain smaller than a CV claim.
 ```
 
+Implementation notes:
+
+- this stage currently works from selected file excerpts, not whole-repository dumps
+- post-parse normalization currently repairs small schema omissions such as scalar-vs-array fields
+- this stage is batched because even moderate repos overflow single `flash` responses
+- if truncation still appears, the kernel may split a batch recursively
+
 ---
 
 ### 5.5 Claim building
@@ -193,6 +247,12 @@ Critical rule:
 ```text
 Claims are the unit that EvidenceGuard judges.
 ```
+
+Implementation notes:
+
+- this stage currently runs before vacancy parsing because the truth layer must exist independently of the target job
+- current outputs are still machine-first and conservative rather than polished recruiter prose
+- this stage has now completed successfully in the first confirmed `truth` run
 
 ---
 
@@ -237,6 +297,13 @@ Responsibilities:
 - keep scope limitations visible
 
 MachineCV is the truth layer output.
+
+Current real output:
+
+- markdown grouped by claims and evidence
+- explicit support metadata
+- explicit safer wording
+- provisional formatting, optimized for audit rather than elegance
 
 ---
 

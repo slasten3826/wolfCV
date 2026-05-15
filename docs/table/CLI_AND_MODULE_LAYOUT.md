@@ -2,9 +2,24 @@
 
 ## Status
 
-Working canonical draft.
+Legacy reference draft with current implementation notes.
+
+This document started in the earlier pre-`mapp` planning layer.
+Do not delete it.
+Use it as historical layout context, not as the single source of truth.
+
+Primary current references are:
+
+- `WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md`
+- `IMPLEMENTATION_STATUS_v0.md`
 
 This document defines the first practical command surface and internal module boundaries for WolfCV.
+
+Current implementation posture:
+
+- CLI currently exposes `scan`, `classify`, `truth`, and `run`
+- `run` is currently an alias of `truth`
+- vacancy-facing commands are not implemented yet
 
 ---
 
@@ -77,6 +92,15 @@ wolfcv parse-vacancy --target vacancy.txt
 
 These are for development and inspection, not the main user story.
 
+Current real command surface:
+
+```bash
+lua main.lua scan --repos ...
+lua main.lua classify --repos ...
+lua main.lua truth --repos ... --out ./wolfcv-out
+lua main.lua run --repos ... --out ./wolfcv-out
+```
+
 ---
 
 ## 4. Recommended command responsibilities
@@ -85,11 +109,16 @@ These are for development and inspection, not the main user story.
 
 Runs the end-to-end pipeline and writes all configured outputs.
 
+Current reality:
+
+- today it runs only the truth-layer path
+
 ### `wolfcv truth`
 
 Produces only the evidence-grounded layer:
 
 - artifacts
+- classified artifacts
 - evidence
 - claims
 - `machinecv.md`
@@ -153,18 +182,19 @@ Recommended first-pass layout:
 wolfcv/
 ├── cli/
 ├── core/
-├── ingest/
-├── classify/
-├── evidence/
-├── claims/
-├── vacancy/
-├── translate/
-├── guard/
-├── legacy/
-├── gap/
+├── runtime/
+├── stages/
 ├── reports/
 └── schemas/
 ```
+
+Current actual layout is intentionally flatter than the older conceptual split.
+
+Reason:
+
+- the product still benefits from explicit stage bodies
+- but the repository does not yet need one directory per ontology layer
+- `stages/` + `runtime/` + `core/` is the more honest current body
 
 ---
 
@@ -180,41 +210,28 @@ Should not contain business logic.
 
 Shared types, config loading, logging, path handling, orchestration helpers.
 
-### `ingest/`
+### `runtime/`
 
-Repository discovery and artifact inventory.
+Provider boundary and stage runner.
 
-### `classify/`
+Current files:
 
-Artifact classification and preliminary tagging.
+- `runtime/provider.lua`
+- `runtime/deepseek.lua`
+- `runtime/stage_runner.lua`
 
-### `evidence/`
+### `stages/`
 
-Evidence extraction from artifacts.
+Explicit stage definitions.
 
-### `claims/`
+Current files:
 
-Claim building, normalization, support-level assignment.
+- `stages/scan.lua`
+- `stages/classify.lua`
+- `stages/extract_evidence.lua`
+- `stages/build_claims.lua`
 
-### `vacancy/`
-
-Vacancy parsing and ritual-pressure interpretation.
-
-### `translate/`
-
-WolfCV wording generation and claim-to-CV assembly.
-
-### `guard/`
-
-EvidenceGuard evaluation and safer-wording suggestions.
-
-### `legacy/`
-
-LegacyHR simulation and diagnostic reporting.
-
-### `gap/`
-
-Gap detection and bridge-project suggestions.
+Future stage files should stay here until the repo actually needs further splitting.
 
 ### `reports/`
 
@@ -238,12 +255,16 @@ Canonical data model schemas for:
 The first implementation should have one central orchestrator:
 
 ```text
-run_pipeline(config)
+run_truth(config)
 ```
 
 That orchestrator should call stage modules in order, rather than distributing control across the whole codebase.
 
 This keeps MVP understandable.
+
+Current real orchestrator:
+
+- `core/pipeline.lua`
 
 ---
 

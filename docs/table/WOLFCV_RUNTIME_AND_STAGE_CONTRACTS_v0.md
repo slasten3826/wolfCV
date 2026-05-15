@@ -15,6 +15,13 @@ It defines:
 - where Lua owns the process
 - where the provider owns the cognition
 
+Current runtime reality:
+
+- `scan`, `classify`, `extract_evidence`, and `build_claims` already exist
+- batching is now part of the runtime law for `flash`-class providers
+- stage-level normalization exists for small schema omissions
+- the first full `truth` contour has completed successfully on the local `WolfCV` repository
+
 ---
 
 ## 1. Core split
@@ -156,6 +163,13 @@ the stage must hard fail.
 
 Do not silently continue.
 
+Current practical extension:
+
+- some stages must be run as a sequence of batch executions, then merged in Lua
+- this is not a deviation from stage law
+- it is the correct response to provider truncation limits
+- truncation-triggered batches may be split recursively by the kernel
+
 ---
 
 ## 5. Trace persistence
@@ -167,22 +181,25 @@ Recommended shape:
 ```text
 out/
   traces/
-    001_scan/
-      input.json
-      output.json
-    002_classify/
+    classify_batch_01/
       input.json
       system_prompt.txt
       user_prompt.txt
-      raw_response.txt
+      provider_response.json
       parsed_output.json
       validation.json
-    003_extract_evidence/
+    extract_evidence_batch_01/
       ...
 ```
 
 This is not optional decoration.
 It is part of the machine substrate.
+
+Important:
+
+- batch identity must remain visible in trace paths
+- otherwise truncation, retry, and provider pressure cannot be audited honestly
+- split descendants such as `_a` and `_b` are part of the trace law, not incidental noise
 
 ---
 
@@ -190,6 +207,11 @@ It is part of the machine substrate.
 
 Each stage should receive a compact packet,
 not the whole world dump blindly.
+
+Current practical law:
+
+- if a packet is too large for the chosen provider and model, Lua must split it before invocation
+- batch splitting belongs to the kernel, not to the provider
 
 Examples:
 
@@ -201,6 +223,10 @@ Input:
 - selected artifact batch
 - local path summaries
 
+Current implementation:
+
+- artifact array batches only
+
 ### `extract_evidence`
 
 Input:
@@ -209,6 +235,17 @@ Input:
 - source text slices
 - repository context
 
+Current implementation:
+
+- classified artifact batches with excerpt slices
+- no whole-repository dump
+- first MVP law: at most one strongest evidence object per artifact
+
+Reason:
+
+- this keeps `flash`-class providers inside a survivable completion budget
+- richer multi-evidence extraction can come later as a separate stronger stage
+
 ### `build_claims`
 
 Input:
@@ -216,6 +253,11 @@ Input:
 - evidence batch
 - optional candidate notes
 - forbidden claim list
+
+Current implementation:
+
+- evidence batches plus optional notes / forbidden claim text
+- build-claim batches may also be split adaptively when provider truncation appears
 
 ### `translate`
 
@@ -258,6 +300,7 @@ Early schema set:
 - `gap_batch`
 
 Validation should be done in Lua,
+not delegated to provider confidence.
 not outsourced back to the model.
 
 The model may help repair,

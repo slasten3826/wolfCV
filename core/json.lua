@@ -97,6 +97,24 @@ end
 
 local parse_value
 
+local function parse_hex4(str, pos)
+  local hex = str:sub(pos, pos + 3)
+  if #hex ~= 4 or not hex:match("^[0-9a-fA-F]+$") then
+    decode_error(pos, "invalid unicode escape")
+  end
+  return tonumber(hex, 16), pos + 4
+end
+
+local function codepoint_to_utf8(codepoint)
+  if codepoint <= 0x7F then
+    return string.char(codepoint)
+  end
+  if utf8 and utf8.char then
+    return utf8.char(codepoint)
+  end
+  decode_error(0, "utf8 library unavailable")
+end
+
 local function parse_string(str, pos)
   pos = pos + 1
   local out = {}
@@ -124,6 +142,25 @@ local function parse_string(str, pos)
       elseif esc == "t" then
         out[#out + 1] = "\t"
         pos = pos + 2
+      elseif esc == "u" then
+        local codepoint
+        codepoint, pos = parse_hex4(str, pos + 2)
+
+        if codepoint >= 0xD800 and codepoint <= 0xDBFF then
+          if str:sub(pos, pos + 1) ~= "\\u" then
+            decode_error(pos, "expected low surrogate")
+          end
+          local low
+          low, pos = parse_hex4(str, pos + 2)
+          if low < 0xDC00 or low > 0xDFFF then
+            decode_error(pos, "invalid low surrogate")
+          end
+          codepoint = 0x10000 + ((codepoint - 0xD800) * 0x400) + (low - 0xDC00)
+        elseif codepoint >= 0xDC00 and codepoint <= 0xDFFF then
+          decode_error(pos, "unexpected low surrogate")
+        end
+
+        out[#out + 1] = codepoint_to_utf8(codepoint)
       else
         decode_error(pos, "unsupported escape")
       end

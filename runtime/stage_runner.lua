@@ -34,7 +34,16 @@ function M.run(stage, input_packet, runtime_cfg, out_dir)
     return nil, response.error
   end
 
-  local parsed = stage.parse_output(response.content)
+  local parsed_ok, parsed_or_err = pcall(stage.parse_output, response.content)
+  if not parsed_ok then
+    write_trace_file(trace_dir, "parse_error.json", {
+      ok = false,
+      error = tostring(parsed_or_err),
+    })
+    return nil, "stage parse failed: " .. tostring(parsed_or_err)
+  end
+
+  local parsed = parsed_or_err
   write_trace_file(trace_dir, "parsed_output.json", parsed)
 
   local ok, err = stage.validate_output(parsed)

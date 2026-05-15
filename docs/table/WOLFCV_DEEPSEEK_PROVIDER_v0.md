@@ -10,6 +10,12 @@ It is not a universal provider abstraction spec.
 It is the initial practical contract for using `DeepSeek`
 as the first cognition runtime.
 
+Current implementation posture:
+
+- default model is `deepseek-v4-flash`
+- provider is already wired into live `classify`, `extract_evidence`, and `build_claims`
+- current bottlenecks are truncation on long arrays and latency across many batches
+
 ---
 
 ## 1. Why DeepSeek first
@@ -26,6 +32,16 @@ not theological.
 
 `DeepSeek` is first.
 It is not “the only model forever”.
+
+Current practical model choice:
+
+- `deepseek-v4-flash`
+
+Reason:
+
+- it is cheap enough for repeated stage testing
+- it is good enough for structured JSON work
+- it forces `WolfCV` to learn batching and discipline early
 
 ---
 
@@ -64,6 +80,12 @@ deepseek.complete({
   max_tokens = 4000
 })
 ```
+
+Current real wrapper behavior also checks:
+
+- missing API key
+- malformed provider JSON
+- truncated responses via `finish_reason == "length"`
 
 Minimum response contract:
 
@@ -114,6 +136,11 @@ Traces must not contain:
 
 - secret keys
 
+Current operational note:
+
+- sandboxed local runs may fail DNS resolution
+- real provider verification may require running outside the sandbox
+
 ---
 
 ## 5. Prompt style for DeepSeek
@@ -149,6 +176,8 @@ So provider use must support:
 
 - first pass for normal output
 - one repair pass for malformed output
+- hard failure on truncation or missing content
+- batching before prompt size becomes irresponsible
 
 Repair prompt should include:
 
@@ -158,6 +187,11 @@ Repair prompt should include:
 - instruction to return corrected JSON only
 
 Do not allow indefinite self-repair spirals.
+
+Current implementation note:
+
+- post-parse repair currently happens in stage-level normalization for small schema omissions
+- full explicit second-pass repair prompting is not implemented yet
 
 ---
 
@@ -196,6 +230,8 @@ Allowed provider-specific things:
 - HTTP payload shape
 - auth handling
 - response parsing
+- finish-reason handling
+- throughput and batching heuristics
 
 Not allowed:
 
@@ -218,6 +254,13 @@ these two stages are the real center of `WolfCV`.
 
 If `DeepSeek` cannot produce useful structured evidence and claims,
 the product loop is not alive yet.
+
+Current result:
+
+- that proof is partially achieved
+- `classify` is stable after batching
+- `extract_evidence` and `build_claims` now have live stage bodies
+- the remaining issue is operational stability on longer multi-batch runs, not absence of product shape
 
 ---
 

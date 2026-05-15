@@ -126,6 +126,15 @@ Current repository contains:
 - first stage runner
 - first live `scan`
 - first live machine-backed `classify`
+- first live machine-backed `extract_evidence`
+- first live machine-backed `build_claims`
+- first batched stage execution path for `flash`-class models
+- first confirmed end-to-end `truth` contour writing:
+  - `artifacts.json`
+  - `classified_artifacts.json`
+  - `evidence_map.json`
+  - `claims.json`
+  - `machinecv.md`
 
 This is not feature-complete.
 This is the first living body.
@@ -141,6 +150,12 @@ Read in this order:
 5. [docs/table/WOLFCV_MAPP_YELLOWPRINT_v0.md](docs/table/WOLFCV_MAPP_YELLOWPRINT_v0.md)
 6. [docs/table/WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md](docs/table/WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md)
 7. [docs/table/WOLFCV_DEEPSEEK_PROVIDER_v0.md](docs/table/WOLFCV_DEEPSEEK_PROVIDER_v0.md)
+8. [docs/table/IMPLEMENTATION_STATUS_v0.md](docs/table/IMPLEMENTATION_STATUS_v0.md)
+
+Practical note:
+
+- items `1` through `4` are now legacy-reference documents
+- items `5` through `8` are the current machine-first layer
 
 ## Short Formula
 
