@@ -31,6 +31,9 @@ Current live machine stages:
 - `classify`
 - `extract_evidence`
 - `build_claims`
+- `parse_vacancy`
+- `translate`
+- `guard`
 
 Current live truth path:
 
@@ -60,6 +63,33 @@ Confirmed successful run:
   - `evidence: 31`
   - `claims: 31`
 
+Current live full path:
+
+```text
+scan
+-> classify
+-> extract_evidence
+-> build_claims
+-> parse_vacancy
+-> translate
+-> guard
+-> wolfcv
+```
+
+Confirmed successful vacancy-aware runs:
+
+- isolated vacancy-layer run over existing `truth13` outputs
+- full `run` command on a small local repo surface
+- provider: `DeepSeek`
+- model: `deepseek-v4-flash`
+- vacancy-aware outputs written:
+  - `vacancy_map.json`
+  - `cv_draft.json`
+  - `wolfcv_draft.md`
+  - `guard_results.json`
+  - `evidence_guard_report.md`
+  - `wolfcv.md`
+
 ---
 
 ## 2. Current command surface
@@ -70,13 +100,16 @@ Real commands now:
 lua main.lua scan --repos ...
 lua main.lua classify --repos ...
 lua main.lua truth --repos ... --out ./wolfcv-out
-lua main.lua run --repos ... --out ./wolfcv-out
+lua main.lua parse-vacancy --target ./vacancy.txt --out ./wolfcv-out
+lua main.lua translate --repos ... --target ./vacancy.txt --out ./wolfcv-out
+lua main.lua guard --repos ... --target ./vacancy.txt --out ./wolfcv-out
+lua main.lua run --repos ... --target ./vacancy.txt --out ./wolfcv-out
 ```
 
 Current note:
 
-- `run` is presently a truth-layer alias
-- recruiter-facing vacancy commands are not implemented yet
+- `truth` remains the truth-only path
+- `run` is now the full vacancy-aware path
 
 ---
 
@@ -90,6 +123,12 @@ Truth path currently writes:
 - `evidence_map.json`
 - `claims.json`
 - `machinecv.md`
+- `vacancy_map.json`
+- `cv_draft.json`
+- `wolfcv_draft.md`
+- `guard_results.json`
+- `evidence_guard_report.md`
+- `wolfcv.md`
 - per-stage traces under `out/traces/`
 
 Trace bodies currently include:
@@ -168,6 +207,7 @@ If these cases are not handled explicitly,
 Current confirmed result:
 
 - these protections were sufficient to complete the first full `truth` contour on the local `WolfCV` repository
+- the same runtime shape was sufficient to complete the first vacancy-aware contour on smaller repo surfaces and on top of existing `truth13` outputs
 
 ---
 
@@ -180,8 +220,8 @@ Current pressure points:
 
 - long runs are slow on `deepseek-v4-flash`
 - multi-batch `extract_evidence` is still the heaviest truth-stage pressure point
-- larger repo sets still need verification beyond the local `WolfCV` repository
-- vacancy-facing path is still absent
+- full `run` on the complete local `WolfCV` repository remains slow and still needs one fresh confirmed completion after the vacancy-layer rollout
+- guard currently depends on strict batch-scoped draft slicing to keep `flash` inside budget
 
 Recent improvement:
 
@@ -194,13 +234,11 @@ Recent improvement:
 
 Not implemented yet:
 
-- `parse_vacancy`
-- `translate`
-- `guard`
 - `legacy-test`
 - `gap`
 - explicit second-pass repair prompting
 - richer report formatting
+- stronger line-precise `source_spans`
 
 ---
 
@@ -209,10 +247,10 @@ Not implemented yet:
 The next correct moves are:
 
 1. verify `truth` on larger and messier real repo sets
-2. reduce latency and failure surface in evidence / claim stages
-3. implement `parse_vacancy`
-4. implement `translate`
-5. implement `guard`
+2. verify fresh full `run` completion on the complete local `WolfCV` repository after the vacancy-layer rollout
+3. reduce latency and failure surface in evidence / claim stages
+4. harden `translate` and `guard` against broader provider drift
+5. implement `gap`
 
 This order matters.
 

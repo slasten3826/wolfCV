@@ -27,4 +27,16 @@ function M.claim_id(seed, index)
   return "claim_" .. slug(seed) .. "_" .. tostring(index)
 end
 
+function M.vacancy_id(seed)
+  return "vac_" .. slug(seed)
+end
+
+function M.cvdraft_id(seed)
+  return "cv_" .. slug(seed)
+end
+
+function M.guard_id(seed, index)
+  return "guard_" .. slug(seed) .. "_" .. tostring(index)
+end
+
 return M

@@ -128,6 +128,9 @@ Current repository contains:
 - first live machine-backed `classify`
 - first live machine-backed `extract_evidence`
 - first live machine-backed `build_claims`
+- first live machine-backed `parse_vacancy`
+- first live machine-backed `translate`
+- first live machine-backed `guard`
 - first batched stage execution path for `flash`-class models
 - first confirmed end-to-end `truth` contour writing:
   - `artifacts.json`
@@ -135,6 +138,23 @@ Current repository contains:
   - `evidence_map.json`
   - `claims.json`
   - `machinecv.md`
+- first confirmed vacancy-aware contour writing:
+  - `vacancy_map.json`
+  - `cv_draft.json`
+  - `wolfcv_draft.md`
+  - `guard_results.json`
+  - `evidence_guard_report.md`
+  - `wolfcv.md`
+
+Current command surface:
+
+- `lua main.lua scan --repos ...`
+- `lua main.lua classify --repos ...`
+- `lua main.lua truth --repos ... --out ./wolfcv-out`
+- `lua main.lua parse-vacancy --target ./vacancy.txt --out ./wolfcv-out`
+- `lua main.lua translate --repos ... --target ./vacancy.txt --out ./wolfcv-out`
+- `lua main.lua guard --repos ... --target ./vacancy.txt --out ./wolfcv-out`
+- `lua main.lua run --repos ... --target ./vacancy.txt --out ./wolfcv-out`
 
 This is not feature-complete.
 This is the first living body.

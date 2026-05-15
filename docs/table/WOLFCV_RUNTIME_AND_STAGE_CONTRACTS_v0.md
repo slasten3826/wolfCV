@@ -17,10 +17,11 @@ It defines:
 
 Current runtime reality:
 
-- `scan`, `classify`, `extract_evidence`, and `build_claims` already exist
+- `scan`, `classify`, `extract_evidence`, `build_claims`, `parse_vacancy`, `translate`, and `guard` now exist
 - batching is now part of the runtime law for `flash`-class providers
 - stage-level normalization exists for small schema omissions
 - the first full `truth` contour has completed successfully on the local `WolfCV` repository
+- the first vacancy-aware contour has completed successfully on smaller repo surfaces and on top of stored truth outputs
 
 ---
 
@@ -267,6 +268,13 @@ Input:
 - vacancy map
 - target mode
 
+Current implementation:
+
+- single machine stage over safe claims only
+- writes `cv_draft.json` and `wolfcv_draft.md`
+- currently normalizes `skill_blocks` down to stable string labels
+- currently prefers one claim per bullet to keep guardability simple
+
 ### `guard`
 
 Input:
@@ -275,6 +283,13 @@ Input:
 - evidence
 - generated draft
 - forbidden claims
+
+Current implementation:
+
+- batch-scoped claim judging
+- relevant evidence sliced per batch
+- draft sliced per batch so the provider only guards the claims currently under review
+- writes `guard_results.json`, `evidence_guard_report.md`, and final `wolfcv.md`
 
 Machine stages should not infer missing world context by accident.
 
@@ -398,7 +413,10 @@ scan
 -> guard
 ```
 
-`run` is then only orchestration over this chain.
+Current implementation:
+
+- `truth` is orchestration over the truth-only prefix
+- `run` is orchestration over the full vacancy-aware chain
 
 Do not start with:
 
