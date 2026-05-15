@@ -1,4 +1,5 @@
 local fs = require("core.fs")
+local github = require("core.github")
 local ids = require("core.ids")
 local repository_schema = require("schemas.repository_index")
 local artifact_schema = require("schemas.artifact_batch")
@@ -127,28 +128,45 @@ local function summary_for(repo_name, rel_path, class_name)
 end
 
 function M.run(config)
-  if not config.repos or #config.repos == 0 then
-    error("scan requires at least one repo via --repos")
+  if (not config.repos or #config.repos == 0) and (not config.github_profiles or #config.github_profiles == 0) then
+    error("scan requires at least one repo via --repos or one profile via --github-profile")
   end
 
   local repositories = {}
   local artifacts = {}
+  local sources = {}
 
   for _, repo_path in ipairs(config.repos) do
+    sources[#sources + 1] = {
+      source_type = "local",
+      local_path = repo_path,
+      remote_url = nil,
+      repo_name = nil,
+      owner = "unknown",
+    }
+  end
+
+  local github_sources = github.resolve_profile_sources(config)
+  for _, source in ipairs(github_sources) do
+    sources[#sources + 1] = source
+  end
+
+  for _, source in ipairs(sources) do
+    local repo_path = source.local_path
     if not fs.is_dir(repo_path) then
       error("repo path is not a directory: " .. repo_path)
     end
 
     local local_path = fs.abspath(repo_path)
-    local repo_name = local_path:match("([^/]+)$") or local_path
+    local repo_name = source.repo_name or local_path:match("([^/]+)$") or local_path
     local repo_id = ids.repo_id(repo_name)
     repositories[#repositories + 1] = {
       repo_id = repo_id,
-      source_type = "local",
+      source_type = source.source_type,
       local_path = local_path,
-      remote_url = nil,
+      remote_url = source.remote_url,
       repo_name = repo_name,
-      owner = "unknown",
+      owner = source.owner,
       branch = fs.git_branch(local_path),
       commit_ref = fs.git_commit(local_path),
     }

@@ -13,6 +13,8 @@ function M.parse(args)
   local parsed = {
     command = command,
     repos = {},
+    github_profiles = {},
+    github_cache = os.getenv("WOLFCV_GITHUB_CACHE") or "/tmp/wolfcv-github-cache",
     out = "./wolfcv-out",
     target = nil,
     notes = nil,
@@ -20,6 +22,7 @@ function M.parse(args)
     include = {},
     exclude = {},
     format = "json",
+    refresh_github = false,
     verbose = false,
   }
 
@@ -34,6 +37,12 @@ function M.parse(args)
         i = i + 1
       end
       i = i - 1
+    elseif token == "--github-profile" then
+      local value
+      value, i = take_value(args, i, token)
+      parsed.github_profiles[#parsed.github_profiles + 1] = value
+    elseif token == "--github-cache" then
+      parsed.github_cache, i = take_value(args, i, token)
     elseif token == "--target" then
       parsed.target, i = take_value(args, i, token)
     elseif token == "--out" then
@@ -54,6 +63,8 @@ function M.parse(args)
       parsed.format, i = take_value(args, i, token)
     elseif token == "--verbose" then
       parsed.verbose = true
+    elseif token == "--refresh-github" then
+      parsed.refresh_github = true
     else
       error("unknown argument: " .. token)
     end

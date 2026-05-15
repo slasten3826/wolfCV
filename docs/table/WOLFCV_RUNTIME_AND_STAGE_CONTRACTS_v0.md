@@ -38,6 +38,7 @@ Responsibilities:
 - filesystem access
 - config loading
 - CLI entrypoints
+- local and cached GitHub source discovery
 - JSON persistence
 - schema validation
 - trace storage

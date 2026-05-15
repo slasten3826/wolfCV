@@ -8,6 +8,7 @@ local function usage()
   return table.concat({
     "usage:",
     "  lua main.lua scan --repos ./repo1 ./repo2 --out ./wolfcv-out",
+    "  lua main.lua scan --github-profile slasten3826 --out ./wolfcv-out",
     "  lua main.lua classify --repos ./repo1 ./repo2 --out ./wolfcv-out",
     "  lua main.lua truth --repos ./repo1 ./repo2 --out ./wolfcv-out",
     "  lua main.lua parse-vacancy --target ./vacancy.txt --out ./wolfcv-out",
@@ -31,6 +32,7 @@ function M.run(argv)
       command = "scan",
       repositories = #result.repositories,
       artifacts = #result.artifacts,
+      github_profiles = #(config.github_profiles or {}),
       out = config.out,
     }) .. "\n")
   elseif config.command == "classify" then
@@ -41,6 +43,7 @@ function M.run(argv)
       repositories = #scan_result.repositories,
       artifacts = #scan_result.artifacts,
       classified_artifacts = #classified,
+      github_profiles = #(config.github_profiles or {}),
       provider = runtime_cfg.provider,
       model = runtime_cfg.model,
       out = config.out,
@@ -59,6 +62,7 @@ function M.run(argv)
       classified_artifacts = #result.classified_artifacts,
       evidence = #result.evidence,
       claims = #result.claims,
+      github_profiles = #(config.github_profiles or {}),
       vacancy_id = result.vacancy_map and result.vacancy_map.vacancy_id or nil,
       translated_claims = result.cv_draft and #result.cv_draft.claim_ids or nil,
       guard_results = result.guard_results and #result.guard_results or nil,

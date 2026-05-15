@@ -149,12 +149,20 @@ Current repository contains:
 Current command surface:
 
 - `lua main.lua scan --repos ...`
+- `lua main.lua scan --github-profile slasten3826`
 - `lua main.lua classify --repos ...`
+- `lua main.lua classify --github-profile slasten3826`
 - `lua main.lua truth --repos ... --out ./wolfcv-out`
 - `lua main.lua parse-vacancy --target ./vacancy.txt --out ./wolfcv-out`
 - `lua main.lua translate --repos ... --target ./vacancy.txt --out ./wolfcv-out`
 - `lua main.lua guard --repos ... --target ./vacancy.txt --out ./wolfcv-out`
 - `lua main.lua run --repos ... --target ./vacancy.txt --out ./wolfcv-out`
+
+Current source ingestion:
+
+- local repository paths via `--repos`
+- public GitHub profiles via `--github-profile`
+- GitHub sources are cloned into a local cache and then treated as ordinary repos by the rest of the pipeline
 
 This is not feature-complete.
 This is the first living body.

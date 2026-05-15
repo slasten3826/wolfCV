@@ -24,6 +24,7 @@ Current live substrate:
 - stage runner
 - report writers
 - schema validators
+- GitHub profile ingestion helper
 
 Current live machine stages:
 
@@ -90,6 +91,16 @@ Confirmed successful vacancy-aware runs:
   - `evidence_guard_report.md`
   - `wolfcv.md`
 
+Confirmed successful GitHub source runs:
+
+- `scan` over `--github-profile slasten3826 --include wolfcv`
+- `classify` over `--github-profile slasten3826 --include wolfcv`
+- repository metadata correctly records:
+  - `source_type: github`
+  - `owner`
+  - `remote_url`
+  - local cache clone path
+
 ---
 
 ## 2. Current command surface
@@ -98,7 +109,9 @@ Real commands now:
 
 ```bash
 lua main.lua scan --repos ...
+lua main.lua scan --github-profile slasten3826
 lua main.lua classify --repos ...
+lua main.lua classify --github-profile slasten3826
 lua main.lua truth --repos ... --out ./wolfcv-out
 lua main.lua parse-vacancy --target ./vacancy.txt --out ./wolfcv-out
 lua main.lua translate --repos ... --target ./vacancy.txt --out ./wolfcv-out
@@ -110,6 +123,7 @@ Current note:
 
 - `truth` remains the truth-only path
 - `run` is now the full vacancy-aware path
+- `scan` and `classify` can now source repos from public GitHub profiles through local cache clones
 
 ---
 
@@ -130,6 +144,12 @@ Truth path currently writes:
 - `evidence_guard_report.md`
 - `wolfcv.md`
 - per-stage traces under `out/traces/`
+
+GitHub source ingestion currently adds:
+
+- profile repo enumeration through GitHub REST API
+- local cache clones under `WOLFCV_GITHUB_CACHE` or `/tmp/wolfcv-github-cache`
+- optional name filtering through existing `--include` and `--exclude`
 
 Trace bodies currently include:
 
@@ -239,6 +259,7 @@ Not implemented yet:
 - explicit second-pass repair prompting
 - richer report formatting
 - stronger line-precise `source_spans`
+- GitHub-native truth verification on larger multi-repo profile sets
 
 ---
 
@@ -249,8 +270,9 @@ The next correct moves are:
 1. verify `truth` on larger and messier real repo sets
 2. verify fresh full `run` completion on the complete local `WolfCV` repository after the vacancy-layer rollout
 3. reduce latency and failure surface in evidence / claim stages
-4. harden `translate` and `guard` against broader provider drift
-5. implement `gap`
+4. verify `truth` and `run` on real multi-repo GitHub profile sets
+5. harden `translate` and `guard` against broader provider drift
+6. implement `gap`
 
 This order matters.
 
