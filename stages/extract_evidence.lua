@@ -37,7 +37,21 @@ local function normalize_source_spans(value)
   if type(value) == "table" then
     local parts = {}
     for _, item in ipairs(value) do
-      parts[#parts + 1] = tostring(item)
+      if type(item) == "table" then
+        local file = type(item.file) == "string" and item.file or nil
+        local text = type(item.text) == "string" and item.text or nil
+        if file and text then
+          parts[#parts + 1] = file .. ": " .. text
+        elseif file then
+          parts[#parts + 1] = file
+        elseif text then
+          parts[#parts + 1] = text
+        else
+          parts[#parts + 1] = tostring(item)
+        end
+      else
+        parts[#parts + 1] = tostring(item)
+      end
     end
     local joined = table.concat(parts, ", ")
     return joined ~= "" and joined or "excerpt"
