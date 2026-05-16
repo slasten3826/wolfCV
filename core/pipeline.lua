@@ -1,6 +1,7 @@
 local config_mod = require("core.config")
 local fs = require("core.fs")
 local ids = require("core.ids")
+local json = require("core.json")
 local reports = require("reports.write")
 local scan = require("stages.scan")
 local classify = require("stages.classify")
@@ -179,6 +180,49 @@ local function stage_with_batch_name(stage, batch_label)
   return cloned
 end
 
+local function read_json_file(path)
+  if not fs.exists(path) then
+    return nil
+  end
+
+  local read_ok, content = pcall(fs.read_file, path)
+  if not read_ok then
+    return nil
+  end
+
+  local decode_ok, decoded = pcall(json.decode, content)
+  if not decode_ok then
+    return nil
+  end
+
+  return decoded
+end
+
+local function load_batch_trace_result(stage_name, out_dir, batch_label)
+  local trace_dir = fs.join(out_dir, "traces", stage_name .. "_" .. batch_label)
+  local validation = read_json_file(fs.join(trace_dir, "validation.json"))
+  local parsed = read_json_file(fs.join(trace_dir, "parsed_output.json"))
+
+  if type(validation) == "table" and validation.ok == true and type(parsed) == "table" then
+    return parsed
+  end
+
+  local left = load_batch_trace_result(stage_name, out_dir, batch_label .. "_a")
+  local right = load_batch_trace_result(stage_name, out_dir, batch_label .. "_b")
+  if type(left) == "table" and type(right) == "table" then
+    local merged = {}
+    for _, item in ipairs(left) do
+      merged[#merged + 1] = item
+    end
+    for _, item in ipairs(right) do
+      merged[#merged + 1] = item
+    end
+    return merged
+  end
+
+  return nil
+end
+
 local function is_truncation_error(err)
   return type(err) == "string" and err:find("truncated", 1, true) ~= nil
 end
@@ -212,6 +256,11 @@ local function split_batch(batch)
 end
 
 local function run_batch_with_retry(stage, input_key, batch, runtime_cfg, out_dir, extras, batch_label)
+  local resumed = load_batch_trace_result(stage.name, out_dir, batch_label)
+  if resumed then
+    return resumed
+  end
+
   local result, err = run_single_batch(stage, input_key, batch, runtime_cfg, out_dir, extras, batch_label)
   if result then
     return result
