@@ -13,6 +13,9 @@ local PROMPT_HEADER = table.concat({
   "Return only JSON array.",
   "Each evidence object must contain:",
   "evidence_id, statement, source_artifacts, source_spans, evidence_type, strength, scope, supports_skills, limitations, confidence",
+  "source_spans must be a short plain string location hint, not a raw code dump and not a nested object.",
+  "Use forms like './path: function derive_l2_shape' or './path: header and argument parsing'.",
+  "Do not copy long source excerpts into source_spans.",
   "Allowed strength: weak, medium, strong.",
   "Allowed scope: concept, prototype, runnable, production_like, production.",
   "Allowed evidence_type: CODE, SPEC, DESIGN, RESEARCH, PROTOCOL, CANON, DOCS, TEST.",
@@ -72,6 +75,9 @@ local function normalize_items(items)
     item.supports_skills = normalize_array(item.supports_skills)
     item.limitations = normalize_array(item.limitations)
     item.source_spans = normalize_source_spans(item.source_spans)
+    if item.evidence_type == "CONFIG" then
+      item.evidence_type = "DOCS"
+    end
     if type(item.confidence) ~= "number" then
       item.confidence = tonumber(item.confidence) or 0.5
     end
@@ -94,6 +100,8 @@ function M.stage()
         "Extract bounded evidence from these artifacts.",
         "Produce no more than one evidence object per artifact.",
         "Preserve source linkage.",
+        "source_spans must be a short location hint string only.",
+        "Do not return raw code dumps inside source_spans.",
         "Return JSON array only.",
         json.encode_pretty(input_packet.artifacts),
       }, "\n\n")

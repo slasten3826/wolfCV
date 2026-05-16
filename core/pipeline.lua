@@ -300,6 +300,25 @@ local function normalize_claim_ids(items)
   end
 end
 
+local function is_low_value_claim_evidence(item)
+  if item.evidence_type ~= "DOCS" or item.strength ~= "weak" then
+    return false
+  end
+
+  local statement = (item.statement or ""):lower()
+  local has_skills = type(item.supports_skills) == "table" and #item.supports_skills > 0
+  if has_skills then
+    return false
+  end
+
+  return statement:find("content unavailable", 1, true)
+    or statement:find("could not be read", 1, true)
+    or statement:find("document exists", 1, true)
+    or statement:find("artifact exists", 1, true)
+    or statement:find("cargo.lock file exists", 1, true)
+    or statement:find("no extractable evidence", 1, true)
+end
+
 function M.run_scan(config)
   local scan_result = scan.run(config)
   reports.write_json(fs.join(config.out, "repository_index.json"), scan_result.repositories)
@@ -400,10 +419,16 @@ function M.run_build_claims(config, evidence, runtime_cfg)
     notes = config.notes and fs.read_file(config.notes) or nil,
     forbidden_claims = config.forbidden_claims and fs.read_file(config.forbidden_claims) or nil,
   }
+  local filtered_evidence = {}
+  for _, item in ipairs(evidence) do
+    if not is_low_value_claim_evidence(item) then
+      filtered_evidence[#filtered_evidence + 1] = item
+    end
+  end
   local claims = run_stage_batches(
     stage,
     "evidence",
-    evidence,
+    filtered_evidence,
     runtime_cfg,
     config.out,
     extras,
