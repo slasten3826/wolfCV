@@ -77,6 +77,10 @@ local function slurp_excerpt(full_path, max_chars)
     content = content:sub(1, max_chars)
   end
 
+  if utf8 and utf8.len and utf8.len(content) == nil then
+    return nil, "non-utf8 source omitted"
+  end
+
   return content, nil
 end
 
