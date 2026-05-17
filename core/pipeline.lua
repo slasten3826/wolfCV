@@ -378,7 +378,7 @@ function M.run_scan(config)
 end
 
 function M.run_classify(config, scan_result)
-  local runtime_cfg = config_mod.default_runtime()
+  local runtime_cfg = config_mod.default_runtime("classify")
   local limits = config_mod.pipeline_limits()
   local stage = classify.stage()
   local fast = {}
@@ -434,6 +434,7 @@ function M.run_classify(config, scan_result)
 end
 
 function M.run_extract_evidence(config, repositories, classified, runtime_cfg)
+  runtime_cfg = runtime_cfg or config_mod.default_runtime("extract_evidence")
   local limits = config_mod.pipeline_limits()
   local stage = extract_evidence.stage()
   local evidence_input = {
@@ -463,6 +464,7 @@ function M.run_extract_evidence(config, repositories, classified, runtime_cfg)
 end
 
 function M.run_build_claims(config, evidence, runtime_cfg)
+  runtime_cfg = runtime_cfg or config_mod.default_runtime("build_claims")
   local limits = config_mod.pipeline_limits()
   local stage = build_claims.stage()
   local extras = {
@@ -492,9 +494,23 @@ end
 
 function M.run_truth(config)
   local scan_result = M.run_scan(config)
-  local classified, runtime_cfg = M.run_classify(config, scan_result)
-  local evidence = M.run_extract_evidence(config, scan_result.repositories, classified, runtime_cfg)
-  local claims = M.run_build_claims(config, evidence, runtime_cfg)
+  local classified, classify_runtime = M.run_classify(config, scan_result)
+  local evidence_runtime = config_mod.default_runtime("extract_evidence")
+  local claims_runtime = config_mod.default_runtime("build_claims")
+  local evidence = M.run_extract_evidence(config, scan_result.repositories, classified, evidence_runtime)
+  local claims = M.run_build_claims(config, evidence, claims_runtime)
+
+  local runtime = {
+    provider = (classify_runtime.provider == evidence_runtime.provider and evidence_runtime.provider == claims_runtime.provider)
+      and classify_runtime.provider or "mixed",
+    model = (classify_runtime.model == evidence_runtime.model and evidence_runtime.model == claims_runtime.model)
+      and classify_runtime.model or "mixed",
+    stages = {
+      classify = classify_runtime,
+      extract_evidence = evidence_runtime,
+      build_claims = claims_runtime,
+    },
+  }
 
   return {
     repositories = scan_result.repositories,
@@ -502,11 +518,12 @@ function M.run_truth(config)
     classified_artifacts = classified,
     evidence = evidence,
     claims = claims,
-    runtime = runtime_cfg,
+    runtime = runtime,
   }
 end
 
 function M.run_parse_vacancy(config, runtime_cfg)
+  runtime_cfg = runtime_cfg or config_mod.default_runtime("parse_vacancy")
   local stage = parse_vacancy.stage()
   local target_path = require_target(config)
   local input_packet = {
@@ -527,6 +544,7 @@ function M.run_parse_vacancy(config, runtime_cfg)
 end
 
 function M.run_translate(config, claims, vacancy_map, runtime_cfg)
+  runtime_cfg = runtime_cfg or config_mod.default_runtime("translate")
   local stage = translate.stage()
   local safe_claims = {}
   for _, claim in ipairs(claims) do
@@ -554,6 +572,7 @@ function M.run_translate(config, claims, vacancy_map, runtime_cfg)
 end
 
 function M.run_guard(config, claims, evidence, vacancy_map, draft, runtime_cfg)
+  runtime_cfg = runtime_cfg or config_mod.default_runtime("guard")
   local limits = config_mod.pipeline_limits()
   local stage = guard.stage()
   local claim_map = claim_index_by_id(claims)
@@ -629,13 +648,19 @@ end
 
 function M.run_full(config)
   local truth = M.run_truth(config)
-  local vacancy_map = M.run_parse_vacancy(config, truth.runtime)
-  local draft = M.run_translate(config, truth.claims, vacancy_map, truth.runtime)
-  local guard_results = M.run_guard(config, truth.claims, truth.evidence, vacancy_map, draft, truth.runtime)
+  local vacancy_runtime = config_mod.default_runtime("parse_vacancy")
+  local translate_runtime = config_mod.default_runtime("translate")
+  local guard_runtime = config_mod.default_runtime("guard")
+  local vacancy_map = M.run_parse_vacancy(config, vacancy_runtime)
+  local draft = M.run_translate(config, truth.claims, vacancy_map, translate_runtime)
+  local guard_results = M.run_guard(config, truth.claims, truth.evidence, vacancy_map, draft, guard_runtime)
 
   truth.vacancy_map = vacancy_map
   truth.cv_draft = draft
   truth.guard_results = guard_results
+  truth.runtime.stages.parse_vacancy = vacancy_runtime
+  truth.runtime.stages.translate = translate_runtime
+  truth.runtime.stages.guard = guard_runtime
   return truth
 end
 

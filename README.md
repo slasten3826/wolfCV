@@ -52,6 +52,12 @@ Current first provider:
 
 - `DeepSeek`
 
+Current runtime posture:
+
+- stage-specific provider/model routing now exists
+- `DeepSeek` is the first live provider body
+- `openai_compat` exists as the bridge for local and future third-party models
+
 Current code posture:
 
 - Lua owns routing
@@ -171,19 +177,23 @@ This is the first living body.
 
 Read in this order:
 
-1. [docs/table/APP_SPEC.md](docs/table/APP_SPEC.md)
-2. [docs/table/MVP_PIPELINE.md](docs/table/MVP_PIPELINE.md)
-3. [docs/table/CLI_AND_MODULE_LAYOUT.md](docs/table/CLI_AND_MODULE_LAYOUT.md)
-4. [docs/table/INTERNAL_DATA_MODEL.md](docs/table/INTERNAL_DATA_MODEL.md)
-5. [docs/table/WOLFCV_MAPP_YELLOWPRINT_v0.md](docs/table/WOLFCV_MAPP_YELLOWPRINT_v0.md)
-6. [docs/table/WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md](docs/table/WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md)
-7. [docs/table/WOLFCV_DEEPSEEK_PROVIDER_v0.md](docs/table/WOLFCV_DEEPSEEK_PROVIDER_v0.md)
-8. [docs/table/IMPLEMENTATION_STATUS_v0.md](docs/table/IMPLEMENTATION_STATUS_v0.md)
+1. [docs/table/WOLFCV_MACHINE_ONBOARDING_v0.md](docs/table/WOLFCV_MACHINE_ONBOARDING_v0.md)
+2. [docs/table/APP_SPEC.md](docs/table/APP_SPEC.md)
+3. [docs/table/MVP_PIPELINE.md](docs/table/MVP_PIPELINE.md)
+4. [docs/table/CLI_AND_MODULE_LAYOUT.md](docs/table/CLI_AND_MODULE_LAYOUT.md)
+5. [docs/table/INTERNAL_DATA_MODEL.md](docs/table/INTERNAL_DATA_MODEL.md)
+6. [docs/table/WOLFCV_MAPP_YELLOWPRINT_v0.md](docs/table/WOLFCV_MAPP_YELLOWPRINT_v0.md)
+7. [docs/table/WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md](docs/table/WOLFCV_RUNTIME_AND_STAGE_CONTRACTS_v0.md)
+8. [docs/table/WOLFCV_DEEPSEEK_PROVIDER_v0.md](docs/table/WOLFCV_DEEPSEEK_PROVIDER_v0.md)
+9. [docs/table/WOLFCV_MULTI_MODEL_RUNTIME_v0.md](docs/table/WOLFCV_MULTI_MODEL_RUNTIME_v0.md)
+10. [docs/table/WOLFCV_PROVIDER_INTEGRATION_v0.md](docs/table/WOLFCV_PROVIDER_INTEGRATION_v0.md)
+11. [docs/table/IMPLEMENTATION_STATUS_v0.md](docs/table/IMPLEMENTATION_STATUS_v0.md)
 
 Practical note:
 
-- items `1` through `4` are now legacy-reference documents
-- items `5` through `8` are the current machine-first layer
+- item `1` is the current shortest machine onboarding path
+- items `2` through `5` are legacy-reference documents
+- items `6` through `11` are the current machine-first layer
 
 ## Short Formula
 

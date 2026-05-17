@@ -21,6 +21,7 @@ Current live substrate:
 - filesystem and JSON helpers
 - provider boundary
 - DeepSeek provider
+- OpenAI-compatible provider bridge
 - stage runner
 - report writers
 - schema validators
@@ -174,6 +175,13 @@ Current default provider:
 Current default model:
 
 - `deepseek-v4-flash`
+
+Current runtime extension:
+
+- stage-specific provider and model routing exists
+- traces now persist `runtime.json` per stage
+- `parse_vacancy` can request explicit JSON mode
+- `openai_compat` can route selected stages into local or third-party OpenAI-compatible endpoints
 
 Current operational laws:
 

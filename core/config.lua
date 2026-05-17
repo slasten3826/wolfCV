@@ -4,12 +4,46 @@ function M.deepseek_key()
   return os.getenv("DEEPSEEK_API_KEY") or os.getenv("DEEPSEEK_KEY")
 end
 
-function M.default_runtime()
+local function normalize_stage_key(stage_name)
+  if type(stage_name) ~= "string" or stage_name == "" then
+    return nil
+  end
+
+  local trimmed = stage_name:gsub("_batch_.*$", "")
+  trimmed = trimmed:gsub("[^%w]+", "_")
+  trimmed = trimmed:upper()
+  return trimmed
+end
+
+local function runtime_env(stage_name, suffix, fallback)
+  local stage_key = normalize_stage_key(stage_name)
+  if stage_key then
+    local stage_value = os.getenv("WOLFCV_" .. stage_key .. "_" .. suffix)
+    if stage_value ~= nil and stage_value ~= "" then
+      return stage_value
+    end
+  end
+
+  local global_value = os.getenv("WOLFCV_" .. suffix)
+  if global_value ~= nil and global_value ~= "" then
+    return global_value
+  end
+
+  return fallback
+end
+
+function M.openai_compat_key(stage_name)
+  return runtime_env(stage_name, "API_KEY", os.getenv("OPENAI_API_KEY"))
+end
+
+function M.default_runtime(stage_name)
   return {
-    provider = "deepseek",
-    model = os.getenv("WOLFCV_MODEL") or "deepseek-v4-flash",
-    temperature = tonumber(os.getenv("WOLFCV_TEMPERATURE") or "0.1"),
-    max_tokens = tonumber(os.getenv("WOLFCV_MAX_TOKENS") or "4000"),
+    provider = runtime_env(stage_name, "PROVIDER", "deepseek"),
+    model = runtime_env(stage_name, "MODEL", "deepseek-v4-flash"),
+    base_url = runtime_env(stage_name, "BASE_URL", os.getenv("OPENAI_BASE_URL")),
+    api_key = runtime_env(stage_name, "API_KEY", nil),
+    temperature = tonumber(runtime_env(stage_name, "TEMPERATURE", "0.1")),
+    max_tokens = tonumber(runtime_env(stage_name, "MAX_TOKENS", "4000")),
   }
 end
 

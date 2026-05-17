@@ -20,6 +20,113 @@ local PROMPT_HEADER = table.concat({
   "red_flags should only include concrete risk patterns visible in the text.",
 }, "\n")
 
+local INTERESTING_HEADINGS = {
+  "обязанности",
+  "задачи",
+  "что предстоит",
+  "чем предстоит заниматься",
+  "требования",
+  "что ждем",
+  "мы ждем",
+  "ключевые требования",
+  "must have",
+  "requirements",
+  "nice to have",
+  "будет плюсом",
+  "стек",
+  "our stack",
+  "stack",
+}
+
+local INTERESTING_INLINE = {
+  "rag",
+  "llm",
+  "agent",
+  "prompt",
+  "fastapi",
+  "python",
+  "docker",
+  "kubernetes",
+  "grafana",
+  "mlflow",
+  "cv",
+  "nlp",
+  "ocr",
+  "embedding",
+  "retrieval",
+  "asyncio",
+  "sql",
+}
+
+local function trim(value)
+  return (value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
+local function contains_any(text, needles)
+  local lowered = text:lower()
+  for _, needle in ipairs(needles) do
+    if lowered:find(needle, 1, true) then
+      return true
+    end
+  end
+  return false
+end
+
+local function is_bullet_line(line)
+  return line:match("^[-•*]") ~= nil or line:match("^%d+[.)]") ~= nil
+end
+
+local function compact_vacancy_text(raw_text)
+  local kept = {}
+  local section_hot = 0
+  local total_chars = 0
+  local first_nonempty_seen = 0
+
+  for raw_line in raw_text:gmatch("[^\r\n]+") do
+    local line = trim(raw_line)
+    if line ~= "" then
+      local lowered = line:lower()
+      local keep = false
+
+      if first_nonempty_seen < 3 then
+        keep = true
+        first_nonempty_seen = first_nonempty_seen + 1
+      elseif contains_any(lowered, INTERESTING_HEADINGS) then
+        keep = true
+        section_hot = 6
+      elseif section_hot > 0 and (is_bullet_line(line) or #line < 180) then
+        keep = true
+        section_hot = section_hot - 1
+      elseif contains_any(lowered, INTERESTING_INLINE) and #line < 220 then
+        keep = true
+      end
+
+      if keep then
+        if total_chars + #line > 5000 or #kept >= 80 then
+          break
+        end
+        kept[#kept + 1] = line
+        total_chars = total_chars + #line
+      end
+    end
+  end
+
+  if #kept == 0 then
+    local fallback = trim(raw_text)
+    if #fallback > 5000 then
+      fallback = fallback:sub(1, 5000)
+    end
+    return fallback
+  end
+
+  return table.concat(kept, "\n")
+end
+
+local function is_pro_runtime(runtime_cfg)
+  local model = trim(runtime_cfg and runtime_cfg.model or ""):lower()
+  return model:find("pro", 1, true) ~= nil
+end
+
 local function normalize_array(value)
   if type(value) == "table" then
     return value
@@ -82,24 +189,115 @@ local function normalize_item(item, input_packet)
   return item
 end
 
+local function derive_archetype(item)
+  local title = (item.title or ""):lower()
+  local hidden = (item.likely_hidden_role or ""):lower()
+  local joined_hard = table.concat(item.hard_requirements or {}, " "):lower()
+  local joined_core = table.concat(item.core_task_surface or {}, " "):lower()
+  local joined_stack = table.concat(item.stack_signals or {}, " "):lower()
+
+  if (
+    title:find("architect", 1, true)
+    or title:find("архитектор", 1, true)
+    or hidden:find("architect", 1, true)
+    or hidden:find("архитектор", 1, true)
+    or joined_core:find("stakeholder", 1, true)
+    or joined_core:find("стейкхолдер", 1, true)
+    or joined_core:find("standard", 1, true)
+    or joined_core:find("координац", 1, true)
+    or joined_core:find("унифиц", 1, true)
+    or joined_hard:find("technical leadership", 1, true)
+    or joined_hard:find("работы архитектором", 1, true)
+  ) and item.social_coordination_weight >= 0.68 then
+    return "architect_social_player"
+  end
+
+  if (
+    joined_core:find("search", 1, true)
+    or joined_hard:find("search", 1, true)
+    or joined_stack:find("embedding", 1, true)
+    or joined_stack:find("retrieval", 1, true)
+  ) and (
+    joined_hard:find("rag", 1, true)
+    or joined_hard:find("llm", 1, true)
+    or joined_core:find("llm", 1, true)
+  ) then
+    return "search_llm_hybrid"
+  end
+
+  if item.breadth_overload_score >= 0.82 and item.domain_specificity_score <= 0.45 then
+    return "generic_ai_wishlist"
+  end
+
+  return item.role_archetype
+end
+
+local function append_red_flag(flags, flag)
+  for _, existing in ipairs(flags) do
+    if existing == flag then
+      return
+    end
+  end
+  flags[#flags + 1] = flag
+end
+
+local function post_normalize(item)
+  item.role_archetype = derive_archetype(item)
+
+  if item.role_archetype == "architect_social_player" then
+    append_red_flag(item.red_flags, "high coordination load disguised as technical role")
+  end
+  if item.role_archetype == "generic_ai_wishlist" then
+    append_red_flag(item.red_flags, "role shape unclear; likely wishlist dump")
+  end
+  if item.breadth_overload_score >= 0.8 then
+    append_red_flag(item.red_flags, "one person expected to cover too many adjacent functions")
+  end
+
+  return item
+end
+
 function M.stage()
   return {
     name = "parse_vacancy",
     version = "v0",
     input_schema = "vacancy_text",
     output_schema = "vacancy_map",
-    build_system_prompt = function()
+    response_format = { type = "json_object" },
+    build_system_prompt = function(_, runtime_cfg)
+      if is_pro_runtime(runtime_cfg) then
+        return table.concat({
+          "You are WolfCV parse_vacancy stage.",
+          "Read one job vacancy and return one compact JSON diagnosis object.",
+          "Do not explain reasoning.",
+          "Do not repeat marketing text.",
+          "Separate real work surface from ritual language.",
+          "Keep arrays short and high-signal.",
+          "Scores must be numbers between 0 and 1.",
+          "Return JSON only.",
+        }, "\n")
+      end
       return PROMPT_HEADER
     end,
-    build_user_prompt = function(input_packet)
-      return table.concat({
+    build_user_prompt = function(input_packet, runtime_cfg)
+      local raw_text = input_packet.raw_text
+      local required_keys_line = nil
+      if is_pro_runtime(runtime_cfg) then
+        raw_text = compact_vacancy_text(raw_text)
+        required_keys_line = "Required JSON keys: title, hard_requirements, soft_requirements, role_archetype, core_task_surface, stack_signals, likely_hidden_role, red_flags, ritualization_score, breadth_overload_score, domain_specificity_score, infra_weight, research_weight, social_coordination_weight"
+      end
+      local parts = {
         "Normalize this vacancy into machine-usable pressure.",
         "Return one JSON object only.",
         "Preserve raw_text_path exactly.",
         "raw_text_path: " .. input_packet.raw_text_path,
         input_packet.notes and ("Candidate notes:\n" .. input_packet.notes) or "Candidate notes: none",
-        input_packet.raw_text,
-      }, "\n\n")
+      }
+      if required_keys_line then
+        parts[#parts + 1] = required_keys_line
+      end
+      parts[#parts + 1] = raw_text
+      return table.concat(parts, "\n\n")
     end,
     parse_output = function(text)
       local cleaned = text
@@ -117,7 +315,7 @@ function M.stage()
 end
 
 function M.normalize_output(obj, input_packet)
-  return normalize_item(obj, input_packet)
+  return post_normalize(normalize_item(obj, input_packet))
 end
 
 return M

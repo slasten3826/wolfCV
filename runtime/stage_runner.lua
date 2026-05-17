@@ -15,10 +15,11 @@ end
 function M.run(stage, input_packet, runtime_cfg, out_dir)
   local trace_dir = fs.join(out_dir, "traces", stage.name)
   fs.mkdir_p(trace_dir)
+  write_trace_file(trace_dir, "runtime.json", runtime_cfg)
   write_trace_file(trace_dir, "input.json", input_packet)
 
-  local system_prompt = assert(stage.build_system_prompt(input_packet))
-  local user_prompt = assert(stage.build_user_prompt(input_packet))
+  local system_prompt = assert(stage.build_system_prompt(input_packet, runtime_cfg))
+  local user_prompt = assert(stage.build_user_prompt(input_packet, runtime_cfg))
   write_trace_file(trace_dir, "system_prompt.txt", system_prompt)
   write_trace_file(trace_dir, "user_prompt.txt", user_prompt)
 
@@ -27,6 +28,7 @@ function M.run(stage, input_packet, runtime_cfg, out_dir)
     user = user_prompt,
     temperature = runtime_cfg.temperature,
     max_tokens = runtime_cfg.max_tokens,
+    response_format = stage.response_format,
   })
 
   write_trace_file(trace_dir, "provider_response.json", response)

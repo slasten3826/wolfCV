@@ -4,20 +4,35 @@ local json = require("core.json")
 
 local M = {}
 
+local function endpoint_for(runtime_cfg)
+  local base_url = runtime_cfg.base_url or os.getenv("OPENAI_BASE_URL")
+  if not base_url or base_url == "" then
+    return nil
+  end
+
+  if base_url:match("/chat/completions/?$") then
+    return base_url
+  end
+
+  return base_url:gsub("/+$", "") .. "/chat/completions"
+end
+
 function M.complete(runtime_cfg, request)
-  local key = config.deepseek_key()
+  local endpoint = endpoint_for(runtime_cfg)
   local provider_limits = config.provider_limits()
-  if not key or key == "" then
+
+  if not endpoint then
     return {
       ok = false,
-      provider = "deepseek",
+      provider = "openai_compat",
       model = runtime_cfg.model,
       content = nil,
       raw = nil,
-      error = "missing DEEPSEEK_API_KEY in environment",
+      error = "missing OPENAI-compatible base URL",
     }
   end
 
+  local key = runtime_cfg.api_key or config.openai_compat_key()
   local payload = {
     model = runtime_cfg.model,
     temperature = request.temperature or runtime_cfg.temperature or 0.1,
@@ -43,8 +58,8 @@ function M.complete(runtime_cfg, request)
   local stderr_path = os.tmpname()
   fs.write_file(request_path, json.encode_pretty(payload) .. "\n")
 
-  local command = table.concat({
-    "curl -sS https://api.deepseek.com/chat/completions",
+  local parts = {
+    "curl -sS " .. fs.shell_quote(endpoint),
     "--http1.1",
     "--retry " .. tostring(provider_limits.curl_retry_count),
     "--retry-all-errors",
@@ -52,12 +67,17 @@ function M.complete(runtime_cfg, request)
     "--connect-timeout " .. tostring(provider_limits.curl_connect_timeout),
     "--max-time " .. tostring(provider_limits.curl_max_time),
     "-H " .. fs.shell_quote("Content-Type: application/json"),
-    "-H " .. fs.shell_quote("Authorization: Bearer " .. key),
-    "--data-binary @" .. fs.shell_quote(request_path),
-    "> " .. fs.shell_quote(response_path),
-    "2> " .. fs.shell_quote(stderr_path),
-  }, " ")
+  }
 
+  if key and key ~= "" then
+    parts[#parts + 1] = "-H " .. fs.shell_quote("Authorization: Bearer " .. key)
+  end
+
+  parts[#parts + 1] = "--data-binary @" .. fs.shell_quote(request_path)
+  parts[#parts + 1] = "> " .. fs.shell_quote(response_path)
+  parts[#parts + 1] = "2> " .. fs.shell_quote(stderr_path)
+
+  local command = table.concat(parts, " ")
   local ok = os.execute(command)
   local body = ""
   local stderr = ""
@@ -75,14 +95,14 @@ function M.complete(runtime_cfg, request)
   if not (ok == true or ok == 0) then
     return {
       ok = false,
-      provider = "deepseek",
+      provider = "openai_compat",
       model = runtime_cfg.model,
       content = nil,
       raw = {
         body = body,
         stderr = stderr,
       },
-      error = stderr ~= "" and ("deepseek request failed: " .. stderr:gsub("%s+$", "")) or "deepseek request failed",
+      error = stderr ~= "" and ("openai-compatible request failed: " .. stderr:gsub("%s+$", "")) or "openai-compatible request failed",
     }
   end
 
@@ -90,42 +110,42 @@ function M.complete(runtime_cfg, request)
   if not decoded_ok then
     return {
       ok = false,
-      provider = "deepseek",
+      provider = "openai_compat",
       model = runtime_cfg.model,
       content = nil,
       raw = body,
-      error = "failed to decode deepseek response: " .. tostring(decoded),
+      error = "failed to decode openai-compatible response: " .. tostring(decoded),
     }
   end
 
-  local content = (((decoded or {}).choices or {})[1] or {}).message
-  local finish_reason = (((decoded or {}).choices or {})[1] or {}).finish_reason
+  local choice = (((decoded or {}).choices or {})[1] or {})
+  local content = (choice.message or {}).content
+  local finish_reason = choice.finish_reason
   if finish_reason == "length" then
     return {
       ok = false,
-      provider = "deepseek",
+      provider = "openai_compat",
       model = decoded.model or runtime_cfg.model,
       content = nil,
       raw = decoded,
-      error = "deepseek response truncated: finish_reason=length",
+      error = "openai-compatible response truncated: finish_reason=length",
     }
   end
 
-  content = content and content.content or nil
   if type(content) ~= "string" or content == "" then
     return {
       ok = false,
-      provider = "deepseek",
-      model = runtime_cfg.model,
+      provider = "openai_compat",
+      model = decoded.model or runtime_cfg.model,
       content = nil,
       raw = decoded,
-      error = "deepseek response missing choices[1].message.content",
+      error = "openai-compatible response missing choices[1].message.content",
     }
   end
 
   return {
     ok = true,
-    provider = "deepseek",
+    provider = "openai_compat",
     model = decoded.model or runtime_cfg.model,
     content = content,
     raw = decoded,

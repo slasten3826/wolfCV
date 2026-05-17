@@ -20,6 +20,7 @@ Current runtime reality:
 - `scan`, `classify`, `extract_evidence`, `build_claims`, `parse_vacancy`, `translate`, and `guard` now exist
 - batching is now part of the runtime law for `flash`-class providers
 - stage-level normalization exists for small schema omissions
+- stage-specific model routing now exists
 - the first full `truth` contour has completed successfully on the local `WolfCV` repository
 - the first vacancy-aware contour has completed successfully on smaller repo surfaces and on top of stored truth outputs
 
@@ -112,6 +113,7 @@ Current target files:
 
 - `runtime/provider.lua`
 - `runtime/deepseek.lua`
+- `runtime/openai_compat.lua`
 
 ---
 
@@ -202,6 +204,7 @@ Important:
 - batch identity must remain visible in trace paths
 - otherwise truncation, retry, and provider pressure cannot be audited honestly
 - split descendants such as `_a` and `_b` are part of the trace law, not incidental noise
+- runtime identity must remain visible through `runtime.json`
 
 ---
 
