@@ -77,6 +77,8 @@ function M.run(argv)
       command = "parse-vacancy",
       vacancy_id = vacancy_map.vacancy_id,
       title = vacancy_map.title,
+      role_archetype = vacancy_map.role_archetype,
+      ritualization_score = vacancy_map.ritualization_score,
       out = config.out,
     }) .. "\n")
   elseif config.command == "translate" then

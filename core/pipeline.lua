@@ -11,6 +11,7 @@ local parse_vacancy = require("stages.parse_vacancy")
 local translate = require("stages.translate")
 local guard = require("stages.guard")
 local machinecv = require("reports.machinecv")
+local vacancy_diagnosis = require("reports.vacancy_diagnosis")
 local wolfcv_draft = require("reports.wolfcv_draft")
 local guard_report = require("reports.guard_report")
 local wolfcv = require("reports.wolfcv")
@@ -521,6 +522,7 @@ function M.run_parse_vacancy(config, runtime_cfg)
     error(err)
   end
   reports.write_json(fs.join(config.out, "vacancy_map.json"), vacancy_map)
+  reports.write_text(fs.join(config.out, "vacancy_diagnosis.md"), vacancy_diagnosis.render(vacancy_map))
   return vacancy_map
 end
 
