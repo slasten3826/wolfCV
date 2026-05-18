@@ -78,6 +78,7 @@ function M.run(argv)
       vacancy_id = vacancy_map.vacancy_id,
       title = vacancy_map.title,
       role_archetype = vacancy_map.role_archetype,
+      diagnosis_quality = vacancy_map.diagnosis_quality,
       ritualization_score = vacancy_map.ritualization_score,
       out = config.out,
     }) .. "\n")

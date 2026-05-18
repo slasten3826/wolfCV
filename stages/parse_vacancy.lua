@@ -161,6 +161,63 @@ local function normalize_score(value, fallback)
   return number
 end
 
+local function require_raw_string(item, key)
+  return type(item[key]) == "string" and not is_placeholder_string(item[key])
+end
+
+local function require_raw_array(item, key)
+  return type(item[key]) == "table"
+end
+
+local function require_raw_number(item, key)
+  return type(item[key]) == "number"
+end
+
+local function validate_raw_contract(item)
+  if type(item) ~= "table" then
+    return false, "vacancy parse output must be a table"
+  end
+
+  local required_strings = {
+    "title",
+    "role_archetype",
+    "likely_hidden_role",
+  }
+  for _, key in ipairs(required_strings) do
+    if not require_raw_string(item, key) then
+      return false, "vacancy parse output missing " .. key
+    end
+  end
+
+  local required_arrays = {
+    "hard_requirements",
+    "soft_requirements",
+    "stack_signals",
+    "red_flags",
+  }
+  for _, key in ipairs(required_arrays) do
+    if not require_raw_array(item, key) then
+      return false, "vacancy parse output missing " .. key
+    end
+  end
+
+  local required_numbers = {
+    "ritualization_score",
+    "breadth_overload_score",
+    "domain_specificity_score",
+    "infra_weight",
+    "research_weight",
+    "social_coordination_weight",
+  }
+  for _, key in ipairs(required_numbers) do
+    if not require_raw_number(item, key) then
+      return false, "vacancy parse output missing " .. key
+    end
+  end
+
+  return true
+end
+
 local function normalize_item(item, input_packet)
   if type(item) ~= "table" then
     return item
@@ -189,12 +246,79 @@ local function normalize_item(item, input_packet)
   return item
 end
 
+local function assess_quality(item)
+  local warnings = {}
+
+  if item.title == "Untitled vacancy" then
+    warnings[#warnings + 1] = "title missing or too weak in model output"
+  end
+  if item.role_archetype == "unknown" then
+    warnings[#warnings + 1] = "role archetype unresolved"
+  end
+  if #item.core_task_surface == 0 then
+    warnings[#warnings + 1] = "core task surface missing"
+  end
+  if #item.hard_requirements == 0 then
+    warnings[#warnings + 1] = "hard requirements missing"
+  end
+  if #item.stack_signals == 0 then
+    warnings[#warnings + 1] = "stack signals missing"
+  end
+  if item.likely_hidden_role == "Role shape unclear from vacancy text." then
+    warnings[#warnings + 1] = "hidden role diagnosis missing"
+  end
+
+  local neutral_scores = 0
+  local scores = {
+    item.ritualization_score,
+    item.breadth_overload_score,
+    item.domain_specificity_score,
+    item.infra_weight,
+    item.research_weight,
+    item.social_coordination_weight,
+  }
+  for _, value in ipairs(scores) do
+    if tonumber(value) == 0.5 then
+      neutral_scores = neutral_scores + 1
+    end
+  end
+  if neutral_scores >= 4 then
+    warnings[#warnings + 1] = "too many fallback-neutral scores"
+  end
+
+  local missing_core_count = 0
+  if #item.core_task_surface == 0 then
+    missing_core_count = missing_core_count + 1
+  end
+  if #item.hard_requirements == 0 then
+    missing_core_count = missing_core_count + 1
+  end
+  if #item.stack_signals == 0 then
+    missing_core_count = missing_core_count + 1
+  end
+
+  local quality = "solid"
+  if item.title == "Untitled vacancy"
+    or (item.role_archetype == "unknown" and item.likely_hidden_role == "Role shape unclear from vacancy text.")
+    or missing_core_count >= 2
+  then
+    quality = "degraded"
+  elseif #warnings > 0 then
+    quality = "partial"
+  end
+
+  item.diagnosis_quality = quality
+  item.contract_warnings = warnings
+  return item
+end
+
 local function derive_archetype(item)
   local title = (item.title or ""):lower()
   local hidden = (item.likely_hidden_role or ""):lower()
   local joined_hard = table.concat(item.hard_requirements or {}, " "):lower()
   local joined_core = table.concat(item.core_task_surface or {}, " "):lower()
   local joined_stack = table.concat(item.stack_signals or {}, " "):lower()
+  local joined_soft = table.concat(item.soft_requirements or {}, " "):lower()
 
   if (
     title:find("architect", 1, true)
@@ -223,6 +347,33 @@ local function derive_archetype(item)
     or joined_core:find("llm", 1, true)
   ) then
     return "search_llm_hybrid"
+  end
+
+  local has_llm = joined_hard:find("llm", 1, true)
+    or joined_hard:find("rag", 1, true)
+    or joined_hard:find("трансформер", 1, true)
+    or joined_stack:find("llm", 1, true)
+    or joined_stack:find("gpt", 1, true)
+    or joined_stack:find("bert", 1, true)
+  local has_classic_ml = joined_hard:find("classical ml", 1, true)
+    or joined_hard:find("eda", 1, true)
+    or joined_hard:find("предобработ", 1, true)
+    or joined_hard:find("preprocessing", 1, true)
+    or joined_soft:find("modern approaches", 1, true)
+  local has_ops_surface = joined_hard:find("ci/cd", 1, true)
+    or joined_hard:find("jenkins", 1, true)
+    or joined_hard:find("kubernetes", 1, true)
+    or joined_stack:find("docker", 1, true)
+    or joined_stack:find("prometheus", 1, true)
+    or joined_stack:find("grafana", 1, true)
+  local has_low_experience = joined_hard:find("1%+ year", 1)
+    or joined_hard:find("1 year", 1, true)
+    or joined_hard:find("от 1 года", 1, true)
+    or table.concat(item.seniority_signals or {}, " "):lower():find("1%+ year", 1)
+    or table.concat(item.seniority_signals or {}, " "):lower():find("junior", 1, true)
+
+  if item.breadth_overload_score >= 0.78 and has_llm and has_classic_ml and has_ops_surface and has_low_experience then
+    return "generic_ai_wishlist"
   end
 
   if item.breadth_overload_score >= 0.82 and item.domain_specificity_score <= 0.45 then
@@ -254,7 +405,7 @@ local function post_normalize(item)
     append_red_flag(item.red_flags, "one person expected to cover too many adjacent functions")
   end
 
-  return item
+  return assess_quality(item)
 end
 
 function M.stage()
@@ -304,12 +455,10 @@ function M.stage()
       cleaned = cleaned:gsub("^```json%s*", "")
       cleaned = cleaned:gsub("^```%s*", "")
       cleaned = cleaned:gsub("%s*```%s*$", "")
-      return normalize_item(json.decode(cleaned), {
-        raw_text_path = "__runtime__",
-      })
+      return json.decode(cleaned)
     end,
     validate_output = function(obj)
-      return schema.validate(obj)
+      return validate_raw_contract(obj)
     end,
   }
 end

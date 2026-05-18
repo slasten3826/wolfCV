@@ -41,6 +41,23 @@ and convert them into:
 
 without crossing into false history.
 
+## Human Entry
+
+This repository is still machine-first,
+but there is now a first human-facing entry path:
+
+- [HUMAN_README.md](HUMAN_README.md)
+
+Use that if you want the shortest explanation of:
+
+- what `WolfCV` does
+- what to feed it
+- what outputs matter first
+
+There is also a first external-use entry:
+
+- [QUICKSTART.md](QUICKSTART.md)
+
 ## Machine-First Rule
 
 This repository is written for machines first.
@@ -135,6 +152,9 @@ Current repository contains:
 - first live machine-backed `extract_evidence`
 - first live machine-backed `build_claims`
 - first live machine-backed `parse_vacancy`
+- first vacancy diagnosis quality surface:
+  - `diagnosis_quality`
+  - `contract_warnings`
 - first live machine-backed `translate`
 - first live machine-backed `guard`
 - first batched stage execution path for `flash`-class models
@@ -145,9 +165,10 @@ Current repository contains:
   - `claims.json`
   - `machinecv.md`
 - first confirmed vacancy-aware contour writing:
-  - `vacancy_map.json`
-  - `cv_draft.json`
-  - `wolfcv_draft.md`
+- `vacancy_map.json`
+- `vacancy_diagnosis.md`
+- `cv_draft.json`
+- `wolfcv_draft.md`
   - `guard_results.json`
   - `evidence_guard_report.md`
   - `wolfcv.md`
@@ -173,6 +194,12 @@ Current source ingestion:
 This is not feature-complete.
 This is the first living body.
 
+Current interpreter law:
+
+- raw vacancy reading must first satisfy a core machine contract
+- Lua may normalize and enrich the result only after that
+- degraded vacancy readings must remain visibly degraded
+
 ## Read First
 
 Read in this order:
@@ -188,12 +215,19 @@ Read in this order:
 9. [docs/table/WOLFCV_MULTI_MODEL_RUNTIME_v0.md](docs/table/WOLFCV_MULTI_MODEL_RUNTIME_v0.md)
 10. [docs/table/WOLFCV_PROVIDER_INTEGRATION_v0.md](docs/table/WOLFCV_PROVIDER_INTEGRATION_v0.md)
 11. [docs/table/IMPLEMENTATION_STATUS_v0.md](docs/table/IMPLEMENTATION_STATUS_v0.md)
+12. [docs/table/WOLFCV_PRODUCTIZATION_v0.md](docs/table/WOLFCV_PRODUCTIZATION_v0.md)
+13. [docs/table/WOLFCV_USER_FLOW_v0.md](docs/table/WOLFCV_USER_FLOW_v0.md)
+14. [docs/table/WOLFCV_OUTPUT_SURFACES_v0.md](docs/table/WOLFCV_OUTPUT_SURFACES_v0.md)
+15. [docs/table/WOLFCV_TRUST_AND_SHARING_v0.md](docs/table/WOLFCV_TRUST_AND_SHARING_v0.md)
+16. [docs/table/WOLFCV_DEMO_RUN_v0.md](docs/table/WOLFCV_DEMO_RUN_v0.md)
+17. [docs/table/WOLFCV_FIELD_TESTING_v0.md](docs/table/WOLFCV_FIELD_TESTING_v0.md)
 
 Practical note:
 
 - item `1` is the current shortest machine onboarding path
 - items `2` through `5` are legacy-reference documents
 - items `6` through `11` are the current machine-first layer
+- items `12` through `17` are the first productization layer
 
 ## Short Formula
 

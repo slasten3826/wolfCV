@@ -37,6 +37,11 @@ Examples:
 - `parse_vacancy` benefits from better abstraction and role diagnosis
 - `translate` and `guard` may benefit from stronger wording discipline
 
+Interpreter note:
+
+- `parse_vacancy` should not look successful merely because Lua backfilled empty fields
+- stronger models may help abstraction, but the kernel must still expose degraded readings honestly
+
 So the runtime law becomes:
 
 ```text
@@ -246,6 +251,11 @@ This means a practical future profile may look like:
 truth stages -> cheap fast model
 vacancy / translate / guard -> stronger model
 ```
+
+Current practical note:
+
+- `flash` is the current operational vacancy interpreter body
+- stronger `pro`-style reasoning still needs a smaller diagnosis contour before it becomes stable enough for routine vacancy work
 
 ---
 

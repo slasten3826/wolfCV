@@ -37,6 +37,11 @@ Current live machine stages:
 - `translate`
 - `guard`
 
+Current live vacancy diagnosis surface:
+
+- `diagnosis_quality`
+- `contract_warnings`
+
 Current live truth path:
 
 ```text
@@ -86,6 +91,7 @@ Confirmed successful vacancy-aware runs:
 - model: `deepseek-v4-flash`
 - vacancy-aware outputs written:
   - `vacancy_map.json`
+  - `vacancy_diagnosis.md`
   - `cv_draft.json`
   - `wolfcv_draft.md`
   - `guard_results.json`
@@ -194,6 +200,9 @@ Current operational laws:
 - `extract_evidence` currently asks for at most one strongest evidence object per artifact
 - truncation-triggered batches may be split adaptively by the kernel
 - provider transport is retried with explicit curl retry policy
+- `parse_vacancy` now validates a raw core model contract before Lua enrichment
+- vacancy diagnosis may be `solid`, `partial`, or `degraded`
+- weakened vacancy readings expose explicit `contract_warnings`
 
 ---
 
@@ -238,6 +247,7 @@ Current confirmed result:
 - these protections were sufficient to complete the first full `truth` contour on the local `WolfCV` repository
 - the same runtime shape was sufficient to complete the first vacancy-aware contour on smaller repo surfaces and on top of existing `truth13` outputs
 - GitHub-profile runs improved materially once classify stopped sending obvious markdown/config/test surfaces through the model
+- vacancy interpretation is now less likely to silently pass half-empty model output as normal reading
 
 ---
 

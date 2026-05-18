@@ -21,6 +21,7 @@ Current runtime reality:
 - batching is now part of the runtime law for `flash`-class providers
 - stage-level normalization exists for small schema omissions
 - stage-specific model routing now exists
+- vacancy interpretation now has an explicit diagnosis-quality surface
 - the first full `truth` contour has completed successfully on the local `WolfCV` repository
 - the first vacancy-aware contour has completed successfully on smaller repo surfaces and on top of stored truth outputs
 
@@ -166,6 +167,12 @@ If schema validation fails repeatedly,
 the stage must hard fail.
 
 Do not silently continue.
+
+Important refinement for `parse_vacancy`:
+
+- raw model output should satisfy a core contract first
+- Lua enrichment comes after that
+- degraded vacancy reads must stay visibly degraded instead of silently becoming normal-looking maps
 
 Current practical extension:
 

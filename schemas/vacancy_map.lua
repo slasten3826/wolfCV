@@ -73,6 +73,12 @@ function M.validate(item)
   if not require_number(item, "social_coordination_weight") then
     return false, "vacancy map missing social_coordination_weight"
   end
+  if not require_string(item, "diagnosis_quality") then
+    return false, "vacancy map missing diagnosis_quality"
+  end
+  if not require_array(item, "contract_warnings") then
+    return false, "vacancy map missing contract_warnings"
+  end
 
   return true
 end
