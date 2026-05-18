@@ -20,6 +20,38 @@ Current default:
 
 ## 2. Fast path
 
+### Preflight first
+
+Before a heavy run, ask `WolfCV` how many artifacts and batches it expects:
+
+```bash
+lua main.lua preflight \
+  --repos ./repo1 ./repo2 \
+  --target ./vacancy.txt \
+  --out ./wolfcv-out
+```
+
+This writes `preflight.json` and stops before any long model stages.
+
+### Vacancy-aware selection before deep read
+
+If you want `WolfCV` to stop after planning and vacancy-aware batch selection:
+
+```bash
+lua main.lua select-batches \
+  --repos ./repo1 ./repo2 \
+  --target ./vacancy.txt \
+  --out ./wolfcv-out
+```
+
+This writes:
+
+- `batch_plan.json`
+- `batch_selection.json`
+- `batch_selection.md`
+
+and stops before deep evidence extraction.
+
 ### Local repos
 
 ```bash
@@ -36,6 +68,18 @@ lua main.lua run \
   --github-profile <profile> \
   --include <repo-name> \
   --target ./vacancy.txt \
+  --out ./wolfcv-out
+```
+
+### Heavy repo, lighter truth pass
+
+If a repo has a lot of internal docs, you can skip most `DOCS` artifacts but still keep `README*`:
+
+```bash
+lua main.lua run \
+  --repos ./repo1 ./repo2 \
+  --target ./vacancy.txt \
+  --no-docs \
   --out ./wolfcv-out
 ```
 

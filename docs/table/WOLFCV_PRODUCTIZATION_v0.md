@@ -217,3 +217,29 @@ roast second
 ```
 
 This mode should remain optional and off by default.
+
+---
+
+## 10. Future runtime modes
+
+`WolfCV` should not remain single-mode forever.
+
+Future product/runtime modes should include:
+
+- `full`
+  - maximum depth
+  - slowest
+  - most expensive
+  - canonical full compile
+- `balanced`
+  - normal everyday mode
+  - reduced cost and latency
+  - still serious enough for normal use
+- `fast`
+  - rough first pass
+  - aggressive prefiltering
+  - useful for quick repo/vacancy matching
+- `vacancy_only`
+  - read the vacancy without compiling repo truth
+- `truth_only`
+  - read repo truth without vacancy targeting

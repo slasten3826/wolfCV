@@ -9,6 +9,7 @@ local classify = require("stages.classify")
 local extract_evidence = require("stages.extract_evidence")
 local build_claims = require("stages.build_claims")
 local parse_vacancy = require("stages.parse_vacancy")
+local select_batches = require("stages.select_batches")
 local translate = require("stages.translate")
 local guard = require("stages.guard")
 local machinecv = require("reports.machinecv")
@@ -18,9 +19,11 @@ local guard_report = require("reports.guard_report")
 local wolfcv = require("reports.wolfcv")
 local hhcv = require("reports.hhcv")
 local start_here = require("reports.start_here")
+local batch_selection_report = require("reports.batch_selection")
 local stage_runner = require("runtime.stage_runner")
 
 local M = {}
+local run_batch_with_retry
 
 local function repo_index_by_id(repositories)
   local map = {}
@@ -89,13 +92,34 @@ local function slurp_excerpt(full_path, max_chars)
   return content, nil
 end
 
-local function evidence_candidates(classified, repositories, limits)
+local function basename(path)
+  return (path and path:match("([^/]+)$")) or path or ""
+end
+
+local function is_readme_path(path)
+  local name = basename(path):lower()
+  return name == "readme" or name:match("^readme[%._-]")
+end
+
+local function include_in_evidence(artifact, config)
+  if artifact.visibility ~= "normal" or artifact.class == "META" then
+    return false
+  end
+
+  if config.no_docs and artifact.class == "DOCS" and not is_readme_path(artifact.path) then
+    return false
+  end
+
+  return true
+end
+
+local function evidence_candidates(config, classified, repositories, limits)
   local repo_map = repo_index_by_id(repositories)
   local candidates = {}
 
   for _, artifact in ipairs(classified) do
-    if artifact.visibility == "normal" and artifact.class ~= "META" then
-        local repo = repo_map[artifact.repo_id]
+    if include_in_evidence(artifact, config) then
+      local repo = repo_map[artifact.repo_id]
       if repo then
         local rel = artifact.path:gsub("^%./", "")
         local full_path = fs.join(repo.local_path, rel)
@@ -166,6 +190,333 @@ local function chunked_by_chars(items, count_limit, char_limit, measure)
   end
 
   return batches
+end
+
+local function count_by(items, key_fn)
+  local counts = {}
+  for _, item in ipairs(items) do
+    local key = key_fn(item)
+    counts[key] = (counts[key] or 0) + 1
+  end
+  return counts
+end
+
+local function counts_to_list(counts)
+  local items = {}
+  for key, count in pairs(counts) do
+    items[#items + 1] = {
+      key = key,
+      count = count,
+    }
+  end
+  table.sort(items, function(a, b)
+    if a.count == b.count then
+      return a.key < b.key
+    end
+    return a.count > b.count
+  end)
+  return items
+end
+
+local function first_role_tag(item)
+  local tags = item.role_tags or {}
+  return tags[1] or "general"
+end
+
+local function planner_signal_tags_for(item)
+  local out = {}
+  local seen = {}
+  local function push(value)
+    if value and value ~= "" and not seen[value] then
+      out[#out + 1] = value
+      seen[value] = true
+    end
+  end
+
+  for _, tag in ipairs(item.role_tags or {}) do
+    push(tag)
+  end
+
+  local path = (item.path or ""):lower()
+  local path_signals = {
+    scenario = "scenario",
+    smoke = "smoke",
+    headless = "headless",
+    bench = "bench",
+    invariant = "invariant",
+    autoplay = "autoplay",
+    cli = "cli",
+    sim = "simulation",
+    runner = "runner",
+    inspect = "inspection",
+  }
+  for token, tag in pairs(path_signals) do
+    if path:find(token, 1, true) then
+      push(tag)
+    end
+  end
+
+  if is_readme_path(item.path) then
+    push("readme")
+  end
+
+  table.sort(out)
+  return out
+end
+
+local function planner_cluster_for(item)
+  return table.concat({
+    item.repo_id or "repo",
+    item.class or "DOCS",
+    first_role_tag(item),
+  }, ":")
+end
+
+local function planner_priority_for(item)
+  local score = 0
+  local class_name = item.class or "DOCS"
+  local tags = item.role_tags or {}
+  local path = (item.path or ""):lower()
+
+  local class_weight = {
+    CODE = 10,
+    TEST = 9,
+    SPEC = 8,
+    PROTOCOL = 8,
+    RESEARCH = 7,
+    INDEX = 6,
+    CONFIG = 4,
+    DOCS = 3,
+    MEDIA = 2,
+  }
+  score = score + (class_weight[class_name] or 1)
+
+  local tag_bonus = {
+    verification = 4,
+    runtime = 3,
+    implementation = 3,
+    protocol = 3,
+    formal_spec = 2,
+    research = 2,
+    configuration = 1,
+    documentation = 0,
+  }
+  for _, tag in ipairs(tags) do
+    score = score + (tag_bonus[tag] or 0)
+  end
+
+  local path_bonus = {
+    smoke = 4,
+    scenario = 4,
+    headless = 4,
+    bench = 3,
+    invariant = 4,
+    cli = 3,
+    test = 3,
+    runner = 2,
+    autoplay = 2,
+  }
+  for token, bonus in pairs(path_bonus) do
+    if path:find(token, 1, true) then
+      score = score + bonus
+    end
+  end
+
+  if is_readme_path(item.path) then
+    score = score + 3
+  end
+
+  return score
+end
+
+local function include_in_batch_plan(config, artifact)
+  return include_in_evidence(artifact, config)
+end
+
+local function planner_candidate_items(config, artifacts)
+  local candidates = {}
+  for _, artifact in ipairs(artifacts) do
+    if include_in_batch_plan(config, artifact) then
+      candidates[#candidates + 1] = {
+        artifact_id = artifact.artifact_id,
+        repo_id = artifact.repo_id,
+        path = artifact.path,
+        class = artifact.class,
+        summary = artifact.summary,
+        role_tags = planner_signal_tags_for(artifact),
+        confidence = artifact.confidence or 0.5,
+        cluster_id = planner_cluster_for(artifact),
+        planner_priority = planner_priority_for(artifact),
+      }
+    end
+  end
+
+  table.sort(candidates, function(a, b)
+    if a.cluster_id == b.cluster_id then
+      if a.planner_priority == b.planner_priority then
+        return a.path < b.path
+      end
+      return a.planner_priority > b.planner_priority
+    end
+    return a.cluster_id < b.cluster_id
+  end)
+
+  return candidates
+end
+
+local function planner_batches(config, repositories, artifacts, limits)
+  local repo_map = repo_index_by_id(repositories)
+  local candidates = planner_candidate_items(config, artifacts)
+  local grouped = {}
+  local group_order = {}
+
+  for _, item in ipairs(candidates) do
+    if not grouped[item.cluster_id] then
+      grouped[item.cluster_id] = {}
+      group_order[#group_order + 1] = item.cluster_id
+    end
+    grouped[item.cluster_id][#grouped[item.cluster_id] + 1] = item
+  end
+
+  local plan = {}
+  for _, cluster_id in ipairs(group_order) do
+    local cluster_items = grouped[cluster_id]
+    local batches = chunked_by_chars(
+      cluster_items,
+      limits.planning_batch_size,
+      limits.planning_prompt_chars,
+      function(item)
+        return #(item.path or "") + #(item.summary or "") + 128
+      end
+    )
+
+    for batch_index, batch in ipairs(batches) do
+      local repo = repo_map[batch[1].repo_id] or {}
+      local signal_seen = {}
+      local class_seen = {}
+      local artifact_ids = {}
+      local representative_paths = {}
+      local signal_tags = {}
+      local class_mix = {}
+      local priority_total = 0
+      local estimated_chars = 0
+
+      for _, item in ipairs(batch) do
+        artifact_ids[#artifact_ids + 1] = item.artifact_id
+        if #representative_paths < 4 then
+          representative_paths[#representative_paths + 1] = item.path
+        end
+        priority_total = priority_total + (item.planner_priority or 0)
+        estimated_chars = estimated_chars + #(item.path or "") + #(item.summary or "") + 128
+
+        if not class_seen[item.class] then
+          class_mix[#class_mix + 1] = item.class
+          class_seen[item.class] = true
+        end
+        for _, tag in ipairs(item.role_tags or {}) do
+          if not signal_seen[tag] then
+            signal_tags[#signal_tags + 1] = tag
+            signal_seen[tag] = true
+          end
+        end
+      end
+
+      table.sort(signal_tags)
+      table.sort(class_mix)
+
+      plan[#plan + 1] = {
+        batch_id = ids.batch_id(cluster_id, batch_index),
+        repo_id = batch[1].repo_id,
+        repo_name = repo.repo_name or batch[1].repo_id,
+        cluster_id = cluster_id,
+        artifact_ids = artifact_ids,
+        representative_paths = representative_paths,
+        class_mix = class_mix,
+        signal_tags = signal_tags,
+        artifact_count = #batch,
+        estimated_chars = estimated_chars,
+        planner_priority = priority_total / math.max(#batch, 1),
+      }
+    end
+  end
+
+  table.sort(plan, function(a, b)
+    if a.planner_priority == b.planner_priority then
+      return a.batch_id < b.batch_id
+    end
+    return a.planner_priority > b.planner_priority
+  end)
+
+  return plan
+end
+
+local function select_batches_internal(config, vacancy_map, plan, selector_runtime, out_dir)
+  local limits = config_mod.pipeline_limits()
+  local stage = select_batches.stage()
+  local selection_batches = chunked_by_chars(
+    plan,
+    limits.planning_batch_size,
+    limits.planning_prompt_chars,
+    function(item)
+      return #(item.batch_id or "") + #(item.repo_name or "") + #(item.cluster_id or "")
+        + #(table.concat(item.representative_paths or {}, ",")) + #(table.concat(item.signal_tags or {}, ","))
+        + 256
+    end
+  )
+
+  local selection = {}
+  local selection_seen = {}
+  for batch_index, batch in ipairs(selection_batches) do
+    local batch_result = run_batch_with_retry(
+      stage,
+      "batch_plan",
+      batch,
+      selector_runtime,
+      out_dir,
+      {
+        vacancy_map = vacancy_map,
+      },
+      string.format("batch_%02d", batch_index)
+    )
+
+    for _, item in ipairs(batch_result) do
+      if item.batch_id and not selection_seen[item.batch_id] then
+        selection[#selection + 1] = item
+        selection_seen[item.batch_id] = true
+      end
+    end
+  end
+
+  return selection
+end
+
+local function selected_artifact_ids(batch_plan, selection)
+  local keep_batches = {}
+  for _, item in ipairs(selection or {}) do
+    if item.decision == "read_now" or item.decision == "read_if_needed" then
+      keep_batches[item.batch_id] = true
+    end
+  end
+
+  local keep_ids = {}
+  for _, batch in ipairs(batch_plan or {}) do
+    if keep_batches[batch.batch_id] then
+      for _, artifact_id in ipairs(batch.artifact_ids or {}) do
+        keep_ids[artifact_id] = true
+      end
+    end
+  end
+  return keep_ids
+end
+
+local function filter_artifacts_by_id(artifacts, keep_ids)
+  local filtered = {}
+  for _, artifact in ipairs(artifacts or {}) do
+    if keep_ids[artifact.artifact_id] then
+      filtered[#filtered + 1] = artifact
+    end
+  end
+  return filtered
 end
 
 local FAST_PATH_CLASS = {
@@ -277,7 +628,7 @@ local function split_batch(batch)
   return left, right
 end
 
-local function run_batch_with_retry(stage, input_key, batch, runtime_cfg, out_dir, extras, batch_label)
+run_batch_with_retry = function(stage, input_key, batch, runtime_cfg, out_dir, extras, batch_label)
   local resumed = load_batch_trace_result(stage.name, out_dir, batch_label)
   if resumed then
     return resumed
@@ -423,6 +774,80 @@ function M.run_scan(config)
   return scan_result
 end
 
+function M.run_preflight(config)
+  local scan_result = M.run_scan(config)
+  local limits = config_mod.pipeline_limits()
+
+  local fast = {}
+  local machine = {}
+  for _, artifact in ipairs(scan_result.artifacts) do
+    if artifact.visibility == "normal" and FAST_PATH_CLASS[artifact.class] then
+      fast[#fast + 1] = artifact
+    else
+      machine[#machine + 1] = artifact
+    end
+  end
+
+  local classify_batches = chunked_by_chars(
+    machine,
+    limits.classify_batch_size,
+    limits.classify_prompt_chars,
+    function(item)
+      return #(item.path or "") + #(item.summary or "") + 256
+    end
+  )
+
+  local evidence_items = evidence_candidates(config, scan_result.artifacts, scan_result.repositories, limits)
+  local evidence_batches = chunked_by_chars(
+    evidence_items,
+    limits.evidence_batch_size,
+    limits.evidence_prompt_chars,
+    function(item)
+      return #(item.source_excerpt or "") + #(item.summary or "") + #(item.path or "") + 256
+    end
+  )
+
+  local result = {
+    repos = #scan_result.repositories,
+    artifacts = #scan_result.artifacts,
+    classify = {
+      fast_path_artifacts = #fast,
+      machine_artifacts = #machine,
+      estimated_batches = #classify_batches,
+    },
+    evidence = {
+      candidates = #evidence_items,
+      estimated_batches = #evidence_batches,
+    },
+    artifact_classes = counts_to_list(count_by(scan_result.artifacts, function(item)
+      return item.class or "unknown"
+    end)),
+    evidence_classes = counts_to_list(count_by(evidence_items, function(item)
+      return item.class or "unknown"
+    end)),
+    limits = {
+      classify_batch_size = limits.classify_batch_size,
+      classify_prompt_chars = limits.classify_prompt_chars,
+      evidence_batch_size = limits.evidence_batch_size,
+      evidence_prompt_chars = limits.evidence_prompt_chars,
+      source_excerpt_chars = limits.source_excerpt_chars,
+      no_docs = config.no_docs or false,
+    },
+    estimate_quality = "approximate_from_scan",
+  }
+
+  reports.write_json(fs.join(config.out, "preflight.json"), result)
+  return result
+end
+
+function M.run_batch_plan(config, scan_result)
+  scan_result = scan_result or M.run_scan(config)
+  local limits = config_mod.pipeline_limits()
+  local plan = planner_batches(config, scan_result.repositories, scan_result.artifacts, limits)
+  reports.write_json(fs.join(config.out, "batch_plan.json"), plan)
+  return plan, scan_result
+end
+
 function M.run_classify(config, scan_result)
   memory_trace.log(config.out, "run_classify.start", {
     artifact_count = #scan_result.artifacts,
@@ -506,7 +931,7 @@ function M.run_extract_evidence(config, repositories, classified, runtime_cfg)
   local limits = config_mod.pipeline_limits()
   local stage = extract_evidence.stage()
   local evidence_input = {
-    artifacts = evidence_candidates(classified, repositories, limits),
+    artifacts = evidence_candidates(config, classified, repositories, limits),
   }
   local evidence_batches = chunked_by_chars(
     evidence_input.artifacts,
@@ -588,6 +1013,97 @@ function M.run_truth(config)
     claims = claims,
     runtime = runtime,
   }
+end
+
+function M.run_select_batches(config)
+  local scan_result = M.run_scan(config)
+  local plan = M.run_batch_plan(config, scan_result)
+  local vacancy_runtime = config_mod.default_runtime("parse_vacancy")
+  local selector_runtime = config_mod.default_runtime("select_batches")
+  local vacancy_map = M.run_parse_vacancy(config, vacancy_runtime)
+  local selection = select_batches_internal(config, vacancy_map, plan, selector_runtime, config.out)
+
+  reports.write_json(fs.join(config.out, "batch_selection.json"), selection)
+  reports.write_text(
+    fs.join(config.out, "batch_selection.md"),
+    batch_selection_report.render(vacancy_map, plan, selection)
+  )
+
+  return {
+    repositories = scan_result.repositories,
+    artifacts = scan_result.artifacts,
+    batch_plan = plan,
+    batch_selection = selection,
+    vacancy_map = vacancy_map,
+    runtime = {
+      provider = (vacancy_runtime.provider == selector_runtime.provider) and vacancy_runtime.provider or "mixed",
+      model = (vacancy_runtime.model == selector_runtime.model) and vacancy_runtime.model or "mixed",
+      stages = {
+        parse_vacancy = vacancy_runtime,
+        select_batches = selector_runtime,
+      },
+    },
+  }
+end
+
+function M.run_selected_full(config)
+  local scan_result = M.run_scan(config)
+  local plan = M.run_batch_plan(config, scan_result)
+  local vacancy_runtime = config_mod.default_runtime("parse_vacancy")
+  local selector_runtime = config_mod.default_runtime("select_batches")
+  local evidence_runtime = config_mod.default_runtime("extract_evidence")
+  local claims_runtime = config_mod.default_runtime("build_claims")
+  local translate_runtime = config_mod.default_runtime("translate")
+  local guard_runtime = config_mod.default_runtime("guard")
+
+  local vacancy_map = M.run_parse_vacancy(config, vacancy_runtime)
+  local selection = select_batches_internal(config, vacancy_map, plan, selector_runtime, config.out)
+  reports.write_json(fs.join(config.out, "batch_selection.json"), selection)
+  reports.write_text(
+    fs.join(config.out, "batch_selection.md"),
+    batch_selection_report.render(vacancy_map, plan, selection)
+  )
+
+  local keep_ids = selected_artifact_ids(plan, selection)
+  local filtered_scan = {
+    repositories = scan_result.repositories,
+    artifacts = filter_artifacts_by_id(scan_result.artifacts, keep_ids),
+  }
+  reports.write_json(fs.join(config.out, "selected_artifacts.json"), filtered_scan.artifacts)
+
+  local classified, classify_runtime = M.run_classify(config, filtered_scan)
+  local evidence = M.run_extract_evidence(config, filtered_scan.repositories, classified, evidence_runtime)
+  local claims = M.run_build_claims(config, evidence, claims_runtime)
+  local draft = M.run_translate(config, claims, vacancy_map, translate_runtime)
+  local guard_results = M.run_guard(config, claims, evidence, vacancy_map, draft, guard_runtime)
+
+  local result = {
+    repositories = filtered_scan.repositories,
+    artifacts = filtered_scan.artifacts,
+    classified_artifacts = classified,
+    evidence = evidence,
+    claims = claims,
+    vacancy_map = vacancy_map,
+    cv_draft = draft,
+    guard_results = guard_results,
+    batch_plan = plan,
+    batch_selection = selection,
+    runtime = {
+      provider = "mixed",
+      model = "mixed",
+      stages = {
+        classify = classify_runtime,
+        extract_evidence = evidence_runtime,
+        build_claims = claims_runtime,
+        parse_vacancy = vacancy_runtime,
+        select_batches = selector_runtime,
+        translate = translate_runtime,
+        guard = guard_runtime,
+      },
+    },
+  }
+  reports.write_text(fs.join(config.out, "START_HERE.md"), start_here.render(result))
+  return result
 end
 
 function M.run_parse_vacancy(config, runtime_cfg)

@@ -39,4 +39,8 @@ function M.guard_id(seed, index)
   return "guard_" .. slug(seed) .. "_" .. tostring(index)
 end
 
+function M.batch_id(seed, index)
+  return "batch_" .. slug(seed) .. "_" .. tostring(index)
+end
+
 return M

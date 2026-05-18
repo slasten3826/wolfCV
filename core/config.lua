@@ -51,6 +51,8 @@ function M.pipeline_limits()
   return {
     classify_batch_size = tonumber(os.getenv("WOLFCV_CLASSIFY_BATCH_SIZE") or "8"),
     classify_prompt_chars = tonumber(os.getenv("WOLFCV_CLASSIFY_PROMPT_CHARS") or "9000"),
+    planning_batch_size = tonumber(os.getenv("WOLFCV_PLANNING_BATCH_SIZE") or "8"),
+    planning_prompt_chars = tonumber(os.getenv("WOLFCV_PLANNING_PROMPT_CHARS") or "12000"),
     evidence_batch_size = tonumber(os.getenv("WOLFCV_EVIDENCE_BATCH_SIZE") or "2"),
     claim_batch_size = tonumber(os.getenv("WOLFCV_CLAIM_BATCH_SIZE") or "10"),
     guard_batch_size = tonumber(os.getenv("WOLFCV_GUARD_BATCH_SIZE") or "8"),

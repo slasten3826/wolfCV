@@ -27,6 +27,31 @@ Current default runtime:
 
 - `DeepSeek flash`
 
+## Preflight first
+
+Before a heavy run, start with:
+
+```bash
+lua main.lua preflight \
+  --repos ./repo1 ./repo2 \
+  --target ./vacancy.txt \
+  --out ./wolfcv-out
+```
+
+This gives an early estimate of scan size and expected batching, then stops.
+
+If you want vacancy-aware selection before any expensive deep reading:
+
+```bash
+lua main.lua select-batches \
+  --repos ./repo1 ./repo2 \
+  --target ./vacancy.txt \
+  --out ./wolfcv-out
+```
+
+This creates a planned batch set and a selected shortlist, then stops before
+deep evidence extraction.
+
 ## Fast path
 
 Local repos:
@@ -47,6 +72,9 @@ lua main.lua run \
   --target ./vacancy.txt \
   --out ./wolfcv-out
 ```
+
+If a repository is doc-heavy and you want a cheaper truth pass, add `--no-docs`.
+This skips most `DOCS` artifacts during evidence extraction, but still keeps `README*`.
 
 Canonical reproducible demo:
 

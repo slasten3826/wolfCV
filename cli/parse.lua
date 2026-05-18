@@ -21,8 +21,10 @@ function M.parse(args)
     forbidden_claims = nil,
     include = {},
     exclude = {},
+    exclude_repos = {},
     format = "json",
     refresh_github = false,
+    no_docs = false,
     verbose = false,
   }
 
@@ -59,8 +61,14 @@ function M.parse(args)
       local value
       value, i = take_value(args, i, token)
       parsed.exclude[#parsed.exclude + 1] = value
+    elseif token == "--exclude-repo" then
+      local value
+      value, i = take_value(args, i, token)
+      parsed.exclude_repos[#parsed.exclude_repos + 1] = value
     elseif token == "--format" then
       parsed.format, i = take_value(args, i, token)
+    elseif token == "--no-docs" then
+      parsed.no_docs = true
     elseif token == "--verbose" then
       parsed.verbose = true
     elseif token == "--refresh-github" then

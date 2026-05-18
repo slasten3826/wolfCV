@@ -9,12 +9,17 @@ local function usage()
     "usage:",
     "  lua main.lua scan --repos ./repo1 ./repo2 --out ./wolfcv-out",
     "  lua main.lua scan --github-profile slasten3826 --out ./wolfcv-out",
+    "  lua main.lua preflight --repos ./repo1 ./repo2 --target ./vacancy.txt --out ./wolfcv-out",
+    "  lua main.lua preflight --github-profile slasten3826 --exclude-repo planGOD --out ./wolfcv-out",
+    "  lua main.lua select-batches --repos ./repo1 ./repo2 --target ./vacancy.txt --out ./wolfcv-out",
+    "  lua main.lua run-selected --repos ./repo1 ./repo2 --target ./vacancy.txt --out ./wolfcv-out",
     "  lua main.lua classify --repos ./repo1 ./repo2 --out ./wolfcv-out",
     "  lua main.lua truth --repos ./repo1 ./repo2 --out ./wolfcv-out",
     "  lua main.lua parse-vacancy --target ./vacancy.txt --out ./wolfcv-out",
     "  lua main.lua translate --repos ./repo1 ./repo2 --target ./vacancy.txt --out ./wolfcv-out",
     "  lua main.lua guard --repos ./repo1 ./repo2 --target ./vacancy.txt --out ./wolfcv-out",
     "  lua main.lua run --repos ./repo1 ./repo2 --target ./vacancy.txt --out ./wolfcv-out",
+    "  lua main.lua run --repos ./repo1 ./repo2 --target ./vacancy.txt --no-docs --out ./wolfcv-out",
   }, "\n")
 end
 
@@ -33,6 +38,63 @@ function M.run(argv)
       repositories = #result.repositories,
       artifacts = #result.artifacts,
       github_profiles = #(config.github_profiles or {}),
+      out = config.out,
+    }) .. "\n")
+  elseif config.command == "preflight" then
+    local result = pipeline.run_preflight(config)
+    io.stdout:write(json.encode_pretty({
+      command = "preflight",
+      repositories = result.repos,
+      artifacts = result.artifacts,
+      classify_machine_artifacts = result.classify.machine_artifacts,
+      classify_estimated_batches = result.classify.estimated_batches,
+      evidence_candidates = result.evidence.candidates,
+      evidence_estimated_batches = result.evidence.estimated_batches,
+      no_docs = result.limits.no_docs,
+      estimate_quality = result.estimate_quality,
+      out = config.out,
+    }) .. "\n")
+  elseif config.command == "select-batches" then
+    local result = pipeline.run_select_batches(config)
+    local counts = {
+      read_now = 0,
+      read_if_needed = 0,
+      skip = 0,
+    }
+    for _, item in ipairs(result.batch_selection or {}) do
+      if counts[item.decision] ~= nil then
+        counts[item.decision] = counts[item.decision] + 1
+      end
+    end
+    io.stdout:write(json.encode_pretty({
+      command = "select-batches",
+      repositories = #result.repositories,
+      artifacts = #result.artifacts,
+      planned_batches = #result.batch_plan,
+      selected_read_now = counts.read_now,
+      selected_read_if_needed = counts.read_if_needed,
+      selected_skip = counts.skip,
+      vacancy_id = result.vacancy_map and result.vacancy_map.vacancy_id or nil,
+      provider = result.runtime.provider,
+      model = result.runtime.model,
+      out = config.out,
+    }) .. "\n")
+  elseif config.command == "run-selected" then
+    local result = pipeline.run_selected_full(config)
+    io.stdout:write(json.encode_pretty({
+      command = "run-selected",
+      repositories = #result.repositories,
+      selected_artifacts = #result.artifacts,
+      classified_artifacts = #result.classified_artifacts,
+      evidence = #result.evidence,
+      claims = #result.claims,
+      planned_batches = #result.batch_plan,
+      selected_batches = #result.batch_selection,
+      vacancy_id = result.vacancy_map and result.vacancy_map.vacancy_id or nil,
+      translated_claims = result.cv_draft and #result.cv_draft.claim_ids or nil,
+      guard_results = result.guard_results and #result.guard_results or nil,
+      provider = result.runtime.provider,
+      model = result.runtime.model,
       out = config.out,
     }) .. "\n")
   elseif config.command == "classify" then

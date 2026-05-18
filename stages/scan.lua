@@ -6,6 +6,20 @@ local artifact_schema = require("schemas.artifact_batch")
 
 local M = {}
 
+local function basename(path)
+  return (tostring(path or ""):match("([^/]+)$")) or tostring(path or "")
+end
+
+local function repo_excluded(config, repo_name)
+  local haystack = tostring(repo_name or ""):lower()
+  for _, item in ipairs(config.exclude_repos or {}) do
+    if haystack == tostring(item):lower() then
+      return true
+    end
+  end
+  return false
+end
+
 local CLASS_BY_PATH_HINT = {
   ["/tests/"] = "TEST",
   ["/test/"] = "TEST",
@@ -137,18 +151,23 @@ function M.run(config)
   local sources = {}
 
   for _, repo_path in ipairs(config.repos) do
-    sources[#sources + 1] = {
-      source_type = "local",
-      local_path = repo_path,
-      remote_url = nil,
-      repo_name = nil,
-      owner = "unknown",
-    }
+    local local_name = basename(repo_path)
+    if not repo_excluded(config, local_name) then
+      sources[#sources + 1] = {
+        source_type = "local",
+        local_path = repo_path,
+        remote_url = nil,
+        repo_name = nil,
+        owner = "unknown",
+      }
+    end
   end
 
   local github_sources = github.resolve_profile_sources(config)
   for _, source in ipairs(github_sources) do
-    sources[#sources + 1] = source
+    if not repo_excluded(config, source.repo_name) then
+      sources[#sources + 1] = source
+    end
   end
 
   for _, source in ipairs(sources) do
