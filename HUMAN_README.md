@@ -60,10 +60,11 @@ lua main.lua run \
 
 ## Read these outputs first
 
-1. `vacancy_diagnosis.md`
-2. `machinecv.md`
-3. `wolfcv.md`
-4. `evidence_guard_report.md`
+1. `START_HERE.md`
+2. `vacancy_diagnosis.md`
+3. `machinecv.md`
+4. `wolfcv.md`
+5. `evidence_guard_report.md`
 
 ## How to read the result
 
@@ -75,6 +76,8 @@ lua main.lua run \
   - the vacancy-aware CV projection
 - `evidence_guard_report.md`
   - where the system distrusted wording or support
+- `START_HERE.md`
+  - first summary of the run, quality, and what to read next
 
 ## Important
 

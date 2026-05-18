@@ -188,3 +188,32 @@ turn the machine into a tool another human can actually use
 R&D proved the engine.
 Productization must make the engine operable, legible, and trustworthy.
 ```
+
+---
+
+## 9. Optional later mode
+
+Optional later product mode:
+
+- `full hohotach`
+
+Meaning:
+
+- an explicitly enabled satirical vacancy-reading mode
+- built on top of normal vacancy diagnosis
+- never replacing the serious diagnosis layer
+
+Why it may matter:
+
+- pedagogical value
+- anti-bullshit pattern recognition
+- emotional relief when the market produces absurd vacancy texts
+
+Important law:
+
+```text
+diagnosis first
+roast second
+```
+
+This mode should remain optional and off by default.

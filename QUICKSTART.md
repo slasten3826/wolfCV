@@ -51,10 +51,11 @@ lua main.lua run \
 
 ## 3. Read these files first
 
-1. `vacancy_diagnosis.md`
-2. `machinecv.md`
-3. `wolfcv.md`
-4. `evidence_guard_report.md`
+1. `START_HERE.md`
+2. `vacancy_diagnosis.md`
+3. `machinecv.md`
+4. `wolfcv.md`
+5. `evidence_guard_report.md`
 
 ## 4. What these files mean
 
@@ -66,6 +67,8 @@ lua main.lua run \
   - the vacancy-aware projection
 - `evidence_guard_report.md`
   - where the system distrusted wording or support
+- `START_HERE.md`
+  - first summary of the whole run and what to inspect next
 
 ## 5. What quality states mean
 

@@ -15,6 +15,7 @@ local vacancy_diagnosis = require("reports.vacancy_diagnosis")
 local wolfcv_draft = require("reports.wolfcv_draft")
 local guard_report = require("reports.guard_report")
 local wolfcv = require("reports.wolfcv")
+local start_here = require("reports.start_here")
 local stage_runner = require("runtime.stage_runner")
 
 local M = {}
@@ -661,6 +662,7 @@ function M.run_full(config)
   truth.runtime.stages.parse_vacancy = vacancy_runtime
   truth.runtime.stages.translate = translate_runtime
   truth.runtime.stages.guard = guard_runtime
+  reports.write_text(fs.join(config.out, "START_HERE.md"), start_here.render(truth))
   return truth
 end
 

@@ -46,6 +46,23 @@ It is the truth substrate.
 
 ---
 
+### 0. Orientation surface
+
+Primary artifact:
+
+- `START_HERE.md`
+
+Role:
+
+- orient a human after a run
+- summarize overall state
+- explain what to read first
+
+This is the first alpha product surface,
+not machine residue.
+
+---
+
 ### B. Target surface
 
 Primary artifact:
@@ -125,6 +142,7 @@ For product use,
 the user should think in this hierarchy:
 
 ```text
+START_HERE.md
 vacancy_diagnosis.md
 machinecv.md
 wolfcv.md

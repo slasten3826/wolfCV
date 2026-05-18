@@ -79,6 +79,7 @@ the CLI is still too inward-facing.
 
 The first shareable run should produce:
 
+- `START_HERE.md`
 - `machinecv.md`
 - `vacancy_diagnosis.md`
 - `wolfcv.md`
@@ -105,13 +106,15 @@ The important distinction:
 
 The first user should be guided to read outputs in this order:
 
-1. `vacancy_diagnosis.md`
-2. `machinecv.md`
-3. `wolfcv.md`
-4. `evidence_guard_report.md`
+1. `START_HERE.md`
+2. `vacancy_diagnosis.md`
+3. `machinecv.md`
+4. `wolfcv.md`
+5. `evidence_guard_report.md`
 
 Why this order:
 
+- first understand the run state
 - first understand the target
 - then understand the extracted truth
 - then see the translated CV surface
