@@ -84,6 +84,10 @@ Primary artifact:
 
 - `wolfcv.md`
 
+Additional artifact:
+
+- `hhcv.md`
+
 Supporting draft:
 
 - `wolfcv_draft.md`
@@ -93,6 +97,7 @@ Role:
 - present a vacancy-aware CV manifestation
 
 This is the visible hiring-facing output.
+`hhcv.md` is the hh.ru-shaped version of that surface.
 
 ---
 
@@ -145,6 +150,7 @@ the user should think in this hierarchy:
 START_HERE.md
 vacancy_diagnosis.md
 machinecv.md
+hhcv.md
 wolfcv.md
 evidence_guard_report.md
 ```

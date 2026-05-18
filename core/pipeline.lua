@@ -2,6 +2,7 @@ local config_mod = require("core.config")
 local fs = require("core.fs")
 local ids = require("core.ids")
 local json = require("core.json")
+local memory_trace = require("core.memory_trace")
 local reports = require("reports.write")
 local scan = require("stages.scan")
 local classify = require("stages.classify")
@@ -15,6 +16,7 @@ local vacancy_diagnosis = require("reports.vacancy_diagnosis")
 local wolfcv_draft = require("reports.wolfcv_draft")
 local guard_report = require("reports.guard_report")
 local wolfcv = require("reports.wolfcv")
+local hhcv = require("reports.hhcv")
 local start_here = require("reports.start_here")
 local stage_runner = require("runtime.stage_runner")
 
@@ -209,6 +211,12 @@ local function load_batch_trace_result(stage_name, out_dir, batch_label)
     return parsed
   end
 
+  local left_trace_dir = fs.join(out_dir, "traces", stage_name .. "_" .. batch_label .. "_a")
+  local right_trace_dir = fs.join(out_dir, "traces", stage_name .. "_" .. batch_label .. "_b")
+  if not fs.is_dir(left_trace_dir) and not fs.is_dir(right_trace_dir) then
+    return nil
+  end
+
   local left = load_batch_trace_result(stage_name, out_dir, batch_label .. "_a")
   local right = load_batch_trace_result(stage_name, out_dir, batch_label .. "_b")
   if type(left) == "table" and type(right) == "table" then
@@ -230,6 +238,11 @@ local function is_truncation_error(err)
 end
 
 local function run_single_batch(stage, input_key, batch, runtime_cfg, out_dir, extras, batch_label)
+  memory_trace.log(out_dir, "run_single_batch.before", {
+    stage = stage.name,
+    batch_label = batch_label,
+    batch_size = #batch,
+  })
   local input_packet = {}
   if extras then
     for key, value in pairs(extras) do
@@ -239,7 +252,14 @@ local function run_single_batch(stage, input_key, batch, runtime_cfg, out_dir, e
   input_packet[input_key] = batch
 
   local batch_stage = stage_with_batch_name(stage, batch_label)
-  return stage_runner.run(batch_stage, input_packet, runtime_cfg, out_dir)
+  local result, err = stage_runner.run(batch_stage, input_packet, runtime_cfg, out_dir)
+  memory_trace.log(out_dir, "run_single_batch.after", {
+    stage = stage.name,
+    batch_label = batch_label,
+    ok = result ~= nil,
+    error = err or "",
+  })
+  return result, err
 end
 
 local function split_batch(batch)
@@ -289,8 +309,18 @@ end
 local function run_stage_batches(stage, input_key, items, runtime_cfg, out_dir, extras, batch_size, batches_override)
   local merged = {}
   local batches = batches_override or chunked(items, batch_size)
+  memory_trace.log(out_dir, "run_stage_batches.start", {
+    stage = stage.name,
+    item_count = #items,
+    batch_count = #batches,
+  })
 
   for batch_index, batch in ipairs(batches) do
+    memory_trace.log(out_dir, "run_stage_batches.batch_before", {
+      stage = stage.name,
+      batch_index = batch_index,
+      batch_size = #batch,
+    })
     local result = run_batch_with_retry(
       stage,
       input_key,
@@ -303,8 +333,17 @@ local function run_stage_batches(stage, input_key, items, runtime_cfg, out_dir, 
     for _, item in ipairs(result) do
       merged[#merged + 1] = item
     end
+    memory_trace.log(out_dir, "run_stage_batches.batch_after", {
+      stage = stage.name,
+      batch_index = batch_index,
+      merged_count = #merged,
+    })
   end
 
+  memory_trace.log(out_dir, "run_stage_batches.done", {
+    stage = stage.name,
+    merged_count = #merged,
+  })
   return merged
 end
 
@@ -371,14 +410,23 @@ local function is_low_value_claim_evidence(item)
 end
 
 function M.run_scan(config)
+  memory_trace.log(config.out, "run_scan.start")
   local scan_result = scan.run(config)
+  memory_trace.log(config.out, "run_scan.after_scan", {
+    repo_count = #scan_result.repositories,
+    artifact_count = #scan_result.artifacts,
+  })
   reports.write_json(fs.join(config.out, "repository_index.json"), scan_result.repositories)
   reports.write_json(fs.join(config.out, "artifacts.json"), scan_result.artifacts)
   reports.write_text(fs.join(config.out, "scan_summary.txt"), scan.build_summary(scan_result))
+  memory_trace.log(config.out, "run_scan.done")
   return scan_result
 end
 
 function M.run_classify(config, scan_result)
+  memory_trace.log(config.out, "run_classify.start", {
+    artifact_count = #scan_result.artifacts,
+  })
   local runtime_cfg = config_mod.default_runtime("classify")
   local limits = config_mod.pipeline_limits()
   local stage = classify.stage()
@@ -392,6 +440,10 @@ function M.run_classify(config, scan_result)
       machine[#machine + 1] = artifact
     end
   end
+  memory_trace.log(config.out, "run_classify.after_split", {
+    fast_count = #fast,
+    machine_count = #machine,
+  })
 
   local machine_batches = chunked_by_chars(
     machine,
@@ -401,11 +453,17 @@ function M.run_classify(config, scan_result)
       return #(item.path or "") + #(item.summary or "") + 256
     end
   )
+  memory_trace.log(config.out, "run_classify.after_batching", {
+    machine_batch_count = #machine_batches,
+  })
 
   local classified = {}
   for _, item in ipairs(fast) do
     classified[#classified + 1] = item
   end
+  memory_trace.log(config.out, "run_classify.after_fast_copy", {
+    classified_count = #classified,
+  })
 
   if #machine > 0 then
     local machine_classified = run_stage_batches(
@@ -421,6 +479,9 @@ function M.run_classify(config, scan_result)
     for _, item in ipairs(machine_classified) do
       classified[#classified + 1] = item
     end
+    memory_trace.log(config.out, "run_classify.after_machine_merge", {
+      classified_count = #classified,
+    })
   end
 
   table.sort(classified, function(a, b)
@@ -429,8 +490,14 @@ function M.run_classify(config, scan_result)
     end
     return a.repo_id < b.repo_id
   end)
+  memory_trace.log(config.out, "run_classify.after_sort", {
+    classified_count = #classified,
+  })
 
   reports.write_json(fs.join(config.out, "classified_artifacts.json"), classified)
+  memory_trace.log(config.out, "run_classify.done", {
+    classified_count = #classified,
+  })
   return classified, runtime_cfg
 end
 
@@ -644,6 +711,7 @@ function M.run_guard(config, claims, evidence, vacancy_map, draft, runtime_cfg)
   reports.write_json(fs.join(config.out, "guard_results.json"), results)
   reports.write_text(fs.join(config.out, "evidence_guard_report.md"), guard_report.render(results))
   reports.write_text(fs.join(config.out, "wolfcv.md"), wolfcv.render(vacancy_map, draft, results))
+  reports.write_text(fs.join(config.out, "hhcv.md"), hhcv.render(vacancy_map, draft, results))
   return results
 end
 

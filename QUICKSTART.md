@@ -54,8 +54,9 @@ lua main.lua run \
 1. `START_HERE.md`
 2. `vacancy_diagnosis.md`
 3. `machinecv.md`
-4. `wolfcv.md`
-5. `evidence_guard_report.md`
+4. `hhcv.md`
+5. `wolfcv.md`
+6. `evidence_guard_report.md`
 
 ## 4. What these files mean
 
@@ -63,6 +64,8 @@ lua main.lua run \
   - what the vacancy seems to really ask for
 - `machinecv.md`
   - what the machine believes is supported by repo evidence
+- `hhcv.md`
+  - hh.ru-compatible projection without fake employment history
 - `wolfcv.md`
   - the vacancy-aware projection
 - `evidence_guard_report.md`
@@ -126,5 +129,7 @@ If you test `WolfCV`, useful feedback is:
 ## 8. Deeper docs
 
 - [HUMAN_README.md](HUMAN_README.md)
+- [ALPHA_TEST_FEEDBACK.md](ALPHA_TEST_FEEDBACK.md)
 - [README.md](README.md)
+- [docs/table/WOLFCV_ALPHA_TEST_PROTOCOL_v0.md](docs/table/WOLFCV_ALPHA_TEST_PROTOCOL_v0.md)
 - [docs/table/WOLFCV_DEMO_RUN_v0.md](docs/table/WOLFCV_DEMO_RUN_v0.md)

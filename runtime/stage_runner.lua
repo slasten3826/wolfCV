@@ -1,5 +1,6 @@
 local fs = require("core.fs")
 local json = require("core.json")
+local memory_trace = require("core.memory_trace")
 local provider = require("runtime.provider")
 
 local M = {}
@@ -13,6 +14,9 @@ local function write_trace_file(trace_dir, name, value)
 end
 
 function M.run(stage, input_packet, runtime_cfg, out_dir)
+  memory_trace.log(out_dir, "stage_runner.start", {
+    stage = stage.name,
+  })
   local trace_dir = fs.join(out_dir, "traces", stage.name)
   fs.mkdir_p(trace_dir)
   write_trace_file(trace_dir, "runtime.json", runtime_cfg)
@@ -20,6 +24,11 @@ function M.run(stage, input_packet, runtime_cfg, out_dir)
 
   local system_prompt = assert(stage.build_system_prompt(input_packet, runtime_cfg))
   local user_prompt = assert(stage.build_user_prompt(input_packet, runtime_cfg))
+  memory_trace.log(out_dir, "stage_runner.after_prompts", {
+    stage = stage.name,
+    system_chars = #system_prompt,
+    user_chars = #user_prompt,
+  })
   write_trace_file(trace_dir, "system_prompt.txt", system_prompt)
   write_trace_file(trace_dir, "user_prompt.txt", user_prompt)
 
@@ -29,6 +38,11 @@ function M.run(stage, input_packet, runtime_cfg, out_dir)
     temperature = runtime_cfg.temperature,
     max_tokens = runtime_cfg.max_tokens,
     response_format = stage.response_format,
+  })
+  memory_trace.log(out_dir, "stage_runner.after_provider", {
+    stage = stage.name,
+    ok = response.ok,
+    content_chars = type(response.content) == "string" and #response.content or 0,
   })
 
   write_trace_file(trace_dir, "provider_response.json", response)
@@ -47,9 +61,17 @@ function M.run(stage, input_packet, runtime_cfg, out_dir)
 
   local parsed = parsed_or_err
   write_trace_file(trace_dir, "parsed_output.json", parsed)
+  memory_trace.log(out_dir, "stage_runner.after_parse", {
+    stage = stage.name,
+  })
 
   local ok, err = stage.validate_output(parsed)
   write_trace_file(trace_dir, "validation.json", { ok = ok, error = err })
+  memory_trace.log(out_dir, "stage_runner.after_validate", {
+    stage = stage.name,
+    ok = ok,
+    error = err or "",
+  })
   if not ok then
     return nil, err
   end

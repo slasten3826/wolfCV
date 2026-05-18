@@ -200,6 +200,11 @@ Current interpreter law:
 - Lua may normalize and enrich the result only after that
 - degraded vacancy readings must remain visibly degraded
 
+Current investigation note:
+
+- one critical memory blow-up in batch trace resume logic has been identified and fixed
+- targeted investigation runs can now enable `WOLFCV_MEMORY_TRACE=1`
+
 ## Read First
 
 Read in this order:

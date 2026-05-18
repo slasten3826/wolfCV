@@ -46,6 +46,7 @@ At minimum:
 
 - `QUICKSTART.md`
 - `HUMAN_README.md`
+- `ALPHA_TEST_FEEDBACK.md`
 - one example vacancy
 - one example command
 
@@ -104,6 +105,17 @@ The important signal is:
 could they actually use the thing,
 and where did usage break down?
 ```
+
+---
+
+## 8. Companion docs
+
+Use together with:
+
+- `QUICKSTART.md`
+- `HUMAN_README.md`
+- `ALPHA_TEST_FEEDBACK.md`
+- `WOLFCV_ALPHA_TEST_PROTOCOL_v0.md`
 
 ---
 

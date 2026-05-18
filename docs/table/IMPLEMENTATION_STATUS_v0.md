@@ -188,6 +188,7 @@ Current runtime extension:
 - traces now persist `runtime.json` per stage
 - `parse_vacancy` can request explicit JSON mode
 - `openai_compat` can route selected stages into local or third-party OpenAI-compatible endpoints
+- memory tracing can now be enabled with `WOLFCV_MEMORY_TRACE=1` during investigation runs
 
 Current operational laws:
 
@@ -238,6 +239,21 @@ The runtime must survive:
 - missing fields
 - truncation
 - slow multi-batch runs
+
+### 5.4 Memory blow-up can come from kernel logic, not only model I/O
+
+One severe freeze-class bug was traced to recursive batch-trace resume logic in Lua,
+not to provider size or response payloads.
+
+This led to:
+
+- runaway recursion
+- multi-gigabyte RSS
+- swap pressure
+- desktop freezes
+
+The first fix is now in place,
+and `processcards` runs no longer reproduce the original blow-up pattern.
 
 If these cases are not handled explicitly,
 `WolfCV` collapses under normal machine behavior.

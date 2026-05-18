@@ -63,8 +63,9 @@ lua main.lua run \
 1. `START_HERE.md`
 2. `vacancy_diagnosis.md`
 3. `machinecv.md`
-4. `wolfcv.md`
-5. `evidence_guard_report.md`
+4. `hhcv.md`
+5. `wolfcv.md`
+6. `evidence_guard_report.md`
 
 ## How to read the result
 
@@ -72,6 +73,8 @@ lua main.lua run \
   - what the vacancy really seems to want
 - `machinecv.md`
   - what the machine thinks is actually supported by repo evidence
+- `hhcv.md`
+  - hh.ru-compatible resume surface without invented employment history
 - `wolfcv.md`
   - the vacancy-aware CV projection
 - `evidence_guard_report.md`
@@ -96,7 +99,9 @@ It is often the machine being honest about uncertainty or mismatch.
 Start here:
 
 - [QUICKSTART.md](QUICKSTART.md)
+- [ALPHA_TEST_FEEDBACK.md](ALPHA_TEST_FEEDBACK.md)
 - [README.md](README.md)
+- [docs/table/WOLFCV_ALPHA_TEST_PROTOCOL_v0.md](docs/table/WOLFCV_ALPHA_TEST_PROTOCOL_v0.md)
 - [docs/table/WOLFCV_DEMO_RUN_v0.md](docs/table/WOLFCV_DEMO_RUN_v0.md)
 - [docs/table/WOLFCV_MACHINE_ONBOARDING_v0.md](docs/table/WOLFCV_MACHINE_ONBOARDING_v0.md)
 - [docs/table/WOLFCV_USER_FLOW_v0.md](docs/table/WOLFCV_USER_FLOW_v0.md)
